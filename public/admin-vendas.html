@@ -42,7 +42,14 @@ input,select{padding:9px;border-radius:8px;border:1px solid #444;background:#0a0
 <div class="kpi"><small>Revenue (paid)</small><b id="k-rev">$0</b></div>
 <div class="kpi"><small>Paid sales</small><b id="k-paid">0</b></div>
 <div class="kpi"><small>Total orders</small><b id="k-total">0</b></div>
+<div class="kpi"><small>Avg ticket</small><b id="k-ticket">$0</b></div>
+<div class="kpi"><small>Close rate</small><b id="k-close">0%</b></div>
 </div>
+</div>
+<div class="card">
+<h3>📣 UTM performance (paid only)</h3>
+<table id="t-utm"><tr><th>Source / Campaign / AB</th><th>Orders</th><th>Revenue</th></tr></table>
+<p><small>Tip: tag your ads like <b>/?utm_source=tiktok&utm_medium=cpc&utm_campaign=video1</b> — the tags travel sales page → checkout → order automatically.</small></p>
 </div>
 <div class="card">
 <h3>🔎 Filters</h3>
@@ -91,6 +98,20 @@ function load(){
       document.getElementById("k-rev").textContent = "$" + Number(res.j.revenue || 0).toFixed(2);
       document.getElementById("k-paid").textContent = res.j.paid || 0;
       document.getElementById("k-total").textContent = res.j.total || 0;
+      document.getElementById("k-ticket").textContent = "$" + (res.j.paid ? (Number(res.j.revenue || 0) / res.j.paid).toFixed(2) : "0.00");
+      document.getElementById("k-close").textContent = (res.j.total ? (100 * (res.j.paid || 0) / res.j.total).toFixed(1) : "0") + "%";
+      var groups = {};
+      CACHE.forEach(function(x){
+        if (x.status !== "paid") return;
+        var u = x.utms || {};
+        var key = "src:" + (u.source || "direct") + " | cmp:" + (u.campaign || "-") + " | " + (u.ab || "-");
+        if (!groups[key]) groups[key] = {orders: 0, rev: 0};
+        groups[key].orders++;
+        groups[key].rev += Number(x.amount) || 0;
+      });
+      var gh = Object.keys(groups).sort(function(a, b){ return groups[b].rev - groups[a].rev; })
+        .map(function(k){ return "<tr><td>" + esc(k) + "</td><td>" + groups[k].orders + "</td><td><b>$" + groups[k].rev.toFixed(2) + "</b></td></tr>"; }).join("");
+      document.getElementById("t-utm").innerHTML = "<tr><th>Source / Campaign / AB</th><th>Orders</th><th>Revenue</th></tr>" + (gh || "<tr><td colspan='3'>No paid sales yet.</td></tr>");
       var html = "";
       CACHE.forEach(function(x){
         var u = x.utms || {};
@@ -117,10 +138,10 @@ document.getElementById("f-all").addEventListener("click", function(){
   load();
 });
 document.getElementById("csv").addEventListener("click", function(){
-  var rows = [["date","order","name","email","product","amount","currency","provider","status","utm_source","utm_medium","utm_campaign","ab","email_status"]];
+  var rows = [["date","order","name","email","phone","product","amount","currency","usd_ref","provider","status","utm_source","utm_medium","utm_campaign","ab","email_status"]];
   CACHE.forEach(function(x){
     var u = x.utms || {};
-    rows.push([new Date(x.ts).toISOString(), x.id, x.name, x.email, x.product, x.amount, x.currency||"", x.provider||"", x.status, u.source||"", u.medium||"", u.campaign||"", u.ab||"", x.email_status||""]);
+    rows.push([new Date(x.ts).toISOString(), x.id, x.name, x.email, x.phone||"", x.product, x.amount, x.currency||"", x.usd_ref||"", x.provider||"", x.status, u.source||"", u.medium||"", u.campaign||"", u.ab||"", x.email_status||""]);
   });
   var csv = rows.map(function(r){ return r.map(function(c){ return '"' + String(c).replace(/"/g, '""') + '"'; }).join(","); }).join("\n");
   var a = document.createElement("a");
