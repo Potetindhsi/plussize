@@ -163,7 +163,29 @@ async function sendAccessEmail(env, sale) {
   const linksFor = (p) => (ACCESS_LINKS[accessOf(sale)] || []).map((u) => `<li><a href="${u}">${u}</a></li>`).join("");
   const subj = "Your access is ready — " + sale.productName;
   const html = `<p>Hi ${sale.name},</p><p>Payment confirmed (<b>${sale.id}</b>). Your access:</p><ul>${linksFor()}</ul>`;
-  // Option A (no domain needed): SendGrid Single Sender (free 100/day).
+  // Option A2 (no domain, no phone): Mailjet single sender (free 200/day).
+  // Mailjet > Account > Senders & Domains > add ONE email, confirm it,
+  // then API Keys (public + private). Secrets: MJ_PUBLIC, MJ_PRIVATE, MJ_FROM.
+  if (env.MJ_PUBLIC && env.MJ_PRIVATE && env.MJ_FROM) {
+    try {
+      const key = btoa(env.MJ_PUBLIC + ":" + env.MJ_PRIVATE);
+      const r = await fetch("https://api.mailjet.com/v3.1/send", {
+        method: "POST",
+        headers: { Authorization: "Basic " + key, "content-type": "application/json" },
+        body: JSON.stringify({
+          Messages: [
+            {
+              From: { Email: env.MJ_FROM, Name: "Access" },
+              To: [{ Email: sale.email, Name: sale.name }],
+              Subject: subj,
+              HTMLPart: html,
+            },
+          ],
+        }),
+      });
+      if (r.ok) return { sent: true, id: "mailjet" };
+    } catch (e) {}
+  }
   // SendGrid > Settings > Sender Authentication > Single Sender > verify 1 email,
   // then Settings > API Keys > create key. Secrets: SENDGRID_API_KEY + SENDGRID_FROM.
   if (env.SENDGRID_API_KEY && env.SENDGRID_FROM) {
