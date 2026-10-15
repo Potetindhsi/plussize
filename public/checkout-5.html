@@ -88,9 +88,9 @@ footer{text-align:center;color:var(--mute);font-size:12px;padding:18px}
 </div>
 <input id="c-holder" placeholder="Name on card" autocomplete="cc-name">
 <input id="c-cpf" placeholder="CPF (card holder)" inputmode="numeric" maxlength="14">
-<div style="font-size:12px;margin-top:2px">Charged as <b id="card-brl" style="color:var(--ink)">R$ 27,90</b> · Instant approval</div>
+<div style="font-size:12px;margin-top:2px">Instant approval · Secure checkout</div>
 </div>
-<div class="total-row"><span class="t-label">Total to pay</span><span class="t-value"><span id="t-usd">$5.00</span><small id="t-brl">R$ 27,90 on card</small></span></div>
+<div class="total-row"><span class="t-label">Total to pay</span><span class="t-value"><span id="t-usd">$5.00</span></span></div>
 <button class="pay-btn" id="pay">Complete payment →</button>
 <p class="err" id="err"></p>
 <p class="notice">📧 <b>Your access link is sent to this email immediately after payment is confirmed.</b> Double-check the spelling.</p>
@@ -106,7 +106,7 @@ footer{text-align:center;color:var(--mute);font-size:12px;padding:18px}
 <div class="sum-method" id="sum-method">card</div></div>
 </div>
 <div class="divider"></div>
-<div class="sum-total"><span>Total</span><span><span id="s-usd">$5.00</span><small id="s-brl">R$ 27,90 on card</small></span></div>
+<div class="sum-total"><span>Total</span><span id="s-usd">$5.00</span></div>
 <button class="pay-btn" id="pay2">Complete payment →</button>
 <div class="guarantee">🛡️ 7-day guarantee. No questions, no hassle.</div>
 </div>
@@ -123,14 +123,10 @@ var UTMS={source:qs("utm_source"),medium:qs("utm_medium"),campaign:qs("utm_campa
 var AB=qs("ab");
 var digits=function(s){return (s||"").replace(/\D/g,"");};
 function fmt$(v){ return "$"+v.toFixed(2); }
-function fmtR(v){ return "R$ "+v.toFixed(2).replace(".",","); }
 function totals(){
-  var us=BASE.usd+(bumpOn?BUMP.usd:0), br=Math.round((BASE.brl+(bumpOn?BUMP.brl:0))*100)/100;
+  var us=BASE.usd+(bumpOn?BUMP.usd:0);
   document.getElementById("t-usd").textContent=fmt$(us);
-  document.getElementById("t-brl").textContent=fmtR(br)+" on card";
   document.getElementById("s-usd").textContent=fmt$(us);
-  document.getElementById("s-brl").textContent=fmtR(br)+" on card";
-  document.getElementById("card-brl").textContent=fmtR(br);
   document.getElementById("bump-line").style.display=bumpOn?"block":"none";
   document.getElementById("bump-btn").textContent=bumpOn?"✓ Added":"+ Add";
   document.getElementById("bump").classList.toggle("on",bumpOn);
