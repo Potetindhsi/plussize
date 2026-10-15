@@ -160,10 +160,27 @@ async function verifyNowSig(body, sigHex, secret) {
 }
 
 async function sendAccessEmail(env, sale) {
-  // Option A (no domain needed): Brevo with a verified single sender.
-  // Brevo > Settings > Senders > add ONE email (e.g. your gmail), confirm it,
-  // then API Keys > create key. Worker secrets: BREVO_API_KEY + BREVO_FROM.
-  if (env.BREVO_API_KEY && env.BREVO_FROM) {
+  const linksFor = (p) => (ACCESS_LINKS[accessOf(sale)] || []).map((u) => `<li><a href="${u}">${u}</a></li>`).join("");
+  const subj = "Your access is ready — " + sale.productName;
+  const html = `<p>Hi ${sale.name},</p><p>Payment confirmed (<b>${sale.id}</b>). Your access:</p><ul>${linksFor()}</ul>`;
+  // Option A (no domain needed): SendGrid Single Sender (free 100/day).
+  // SendGrid > Settings > Sender Authentication > Single Sender > verify 1 email,
+  // then Settings > API Keys > create key. Secrets: SENDGRID_API_KEY + SENDGRID_FROM.
+  if (env.SENDGRID_API_KEY && env.SENDGRID_FROM) {
+    try {
+      const r = await fetch("https://api.sendgrid.com/v3/mail/send", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + env.SENDGRID_API_KEY, "content-type": "application/json" },
+        body: JSON.stringify({
+          personalizations: [{ to: [{ email: sale.email, name: sale.name }] }],
+          from: { email: env.SENDGRID_FROM, name: "Access" },
+          subject: subj,
+          content: [{ type: "text/html", value: html }],
+        }),
+      });
+      if (r.ok || r.status === 202) return { sent: true, id: "sendgrid" };
+    } catch (e) {}
+  }
     try {
       const links = (ACCESS_LINKS[accessOf(sale)] || []).map((u) => `<li><a href="${u}">${u}</a></li>`).join("");
       const r = await fetch("https://api.brevo.com/v3/smtp/email", {
