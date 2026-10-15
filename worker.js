@@ -160,8 +160,28 @@ async function verifyNowSig(body, sigHex, secret) {
 }
 
 async function sendAccessEmail(env, sale) {
-  // Optional: set RESEND_API_KEY + RESEND_FROM in Worker secrets/vars.
-  if (!env.RESEND_API_KEY) return { sent: false, reason: "no RESEND_API_KEY" };
+  // Option A (no domain needed): Brevo with a verified single sender.
+  // Brevo > Settings > Senders > add ONE email (e.g. your gmail), confirm it,
+  // then API Keys > create key. Worker secrets: BREVO_API_KEY + BREVO_FROM.
+  if (env.BREVO_API_KEY && env.BREVO_FROM) {
+    try {
+      const links = (ACCESS_LINKS[accessOf(sale)] || []).map((u) => `<li><a href="${u}">${u}</a></li>`).join("");
+      const r = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: { "api-key": env.BREVO_API_KEY, "content-type": "application/json" },
+        body: JSON.stringify({
+          sender: { email: env.BREVO_FROM, name: "Access" },
+          to: [{ email: sale.email, name: sale.name }],
+          subject: "Your access is ready — " + sale.productName,
+          htmlContent: `<p>Hi ${sale.name},</p><p>Payment confirmed (<b>${sale.id}</b>). Your access:</p><ul>${links}</ul>`,
+        }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok) return { sent: true, id: j.messageId || "brevo" };
+    } catch (e) {}
+  }
+  // Option B: Resend (needs verified domain for non-owner recipients).
+  if (!env.RESEND_API_KEY) return { sent: false, reason: "no email provider key" };
   try {
     const links = (ACCESS_LINKS[accessOf(sale)] || []).map((u) => `<li><a href="${u}">${u}</a></li>`).join("");
     const r = await fetch("https://api.resend.com/emails", {
