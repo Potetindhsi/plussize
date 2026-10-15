@@ -114,6 +114,26 @@ function qs(n){ try { return new URLSearchParams(location.search).get(n) || ""; 
 var UTMS={source:qs("utm_source"),medium:qs("utm_medium"),campaign:qs("utm_campaign"),term:qs("utm_term"),content:qs("utm_content")};
 var AB=qs("ab");
 var digits=function(s){return (s||"").replace(/\D/g,"");};
+var LSKEY="checkout-10";
+try {
+  var saved=JSON.parse(localStorage.getItem(LSKEY)||"{}");
+  ["f-name","f-email","c-num","c-exp","c-cvv","c-holder","c-doc"].forEach(function(id){
+    if(saved[id] && document.getElementById(id)) document.getElementById(id).value=saved[id];
+  });
+} catch(e){}
+function persist(){
+  try {
+    var o={};
+    ["f-name","f-email","c-num","c-exp","c-cvv","c-holder","c-doc"].forEach(function(id){
+      var el=document.getElementById(id); if(el) o[id]=el.value;
+    });
+    localStorage.setItem(LSKEY,JSON.stringify(o));
+  } catch(e){}
+}
+function clearPersist(){ try { localStorage.removeItem(LSKEY); } catch(e){} }
+["f-name","f-email","c-num","c-exp","c-cvv","c-holder","c-doc"].forEach(function(id){
+  var el=document.getElementById(id); if(el) el.addEventListener("input",persist);
+});
 document.getElementById("sum-method").textContent="credit card";
 document.getElementById("c-num").addEventListener("input",function(e){
   var d=digits(e.target.value).slice(0,16); e.target.value=d.replace(/(\d{4})(?=\d)/g,"$1 ");
@@ -173,13 +193,13 @@ function go(btn){
         });
       }).then(function(r){return r.json();})
       .then(function(p){
-        if(p.status==="approved"||p.status==="in_process"||p.status==="pending"){ location.href="/acesso.html?order="+encodeURIComponent(j.order_id); return; }
+        if(p.status==="approved"||p.status==="in_process"||p.status==="pending"){ clearPersist(); location.href="/acesso.html?order="+encodeURIComponent(j.order_id); return; }
         failDecline(btn,old,function(){
           var cc=validCustomer(document.getElementById("pay")); if(!cc) return;
           fetch("/api/checkout",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
             product:"premium",provider:"mercadopago",name:cc.name,email:cc.email,bumps:[],utms:UTMS,ab:AB})})
             .then(function(r){return r.json();})
-            .then(function(jj){ if(jj.init_point){ location.href=jj.init_point; return; } fail("Payment unavailable right now.",btn,old); })
+            .then(function(jj){ if(jj.init_point){ clearPersist(); location.href=jj.init_point; return; } fail("Payment unavailable right now.",btn,old); })
             .catch(function(){ fail("Connection error, try again.",btn,old); });
         });
       });
@@ -194,7 +214,7 @@ document.getElementById("alt-pay").addEventListener("click",function(e){
   fetch("/api/checkout",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
     product:"premium",provider:"mercadopago",name:c.name,email:c.email,bumps:[],utms:UTMS,ab:AB})})
     .then(function(r){return r.json();})
-    .then(function(j){ if(j.init_point){ location.href=j.init_point; return; } fail("Payment unavailable right now.",document.getElementById("pay"),"Complete payment →"); })
+    .then(function(j){ if(j.init_point){ clearPersist(); location.href=j.init_point; return; } fail("Payment unavailable right now.",document.getElementById("pay"),"Complete payment →"); })
     .catch(function(){ fail("Connection error, try again.",document.getElementById("pay"),"Complete payment →"); });
 });
 var total=15*60,cd=document.getElementById("cd");

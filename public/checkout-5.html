@@ -126,6 +126,27 @@ function qs(n){ try { return new URLSearchParams(location.search).get(n) || ""; 
 var UTMS={source:qs("utm_source"),medium:qs("utm_medium"),campaign:qs("utm_campaign"),term:qs("utm_term"),content:qs("utm_content")};
 var AB=qs("ab");
 var digits=function(s){return (s||"").replace(/\D/g,"");};
+var LSKEY="checkout-5";
+try {
+  var saved=JSON.parse(localStorage.getItem(LSKEY)||"{}");
+  ["f-name","f-email","c-num","c-exp","c-cvv","c-holder","c-doc"].forEach(function(id){
+    if(saved[id] && document.getElementById(id)) document.getElementById(id).value=saved[id];
+  });
+  if(saved.bump){ bumpOn=true; }
+} catch(e){}
+function persist(){
+  try {
+    var o={bump:bumpOn?1:0};
+    ["f-name","f-email","c-num","c-exp","c-cvv","c-holder","c-doc"].forEach(function(id){
+      var el=document.getElementById(id); if(el) o[id]=el.value;
+    });
+    localStorage.setItem(LSKEY,JSON.stringify(o));
+  } catch(e){}
+}
+function clearPersist(){ try { localStorage.removeItem(LSKEY); } catch(e){} }
+["f-name","f-email","c-num","c-exp","c-cvv","c-holder","c-doc"].forEach(function(id){
+  var el=document.getElementById(id); if(el) el.addEventListener("input",persist);
+});
 function fmt$(v){ return "$"+v.toFixed(2); }
 function totals(){
   var us=BASE.usd+(bumpOn?BUMP.usd:0);
@@ -137,7 +158,7 @@ function totals(){
   document.getElementById("bump").classList.toggle("off",!bumpOn);
   document.getElementById("sum-method").textContent="credit card";
 }
-document.getElementById("bump").addEventListener("click",function(){ bumpOn=!bumpOn; totals(); });
+document.getElementById("bump").addEventListener("click",function(){ bumpOn=!bumpOn; totals(); persist(); });
 document.getElementById("c-num").addEventListener("input",function(e){
   var d=digits(e.target.value).slice(0,16); e.target.value=d.replace(/(\d{4})(?=\d)/g,"$1 ");
 });
@@ -197,13 +218,13 @@ function go(btn){
         });
       }).then(function(r){return r.json();})
       .then(function(p){
-        if(p.status==="approved"||p.status==="in_process"||p.status==="pending"){ location.href="/acesso.html?order="+encodeURIComponent(j.order_id); return; }
+        if(p.status==="approved"||p.status==="in_process"||p.status==="pending"){ clearPersist(); location.href="/acesso.html?order="+encodeURIComponent(j.order_id); return; }
         failDecline(btn,old,function(){
           var cc=validCustomer(document.getElementById("pay")); if(!cc) return;
           fetch("/api/checkout",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
             product:"basic",provider:"mercadopago",name:cc.name,email:cc.email,bumps:bumpOn?["premium_upgrade"]:[],utms:UTMS,ab:AB})})
             .then(function(r){return r.json();})
-            .then(function(jj){ if(jj.init_point){ location.href=jj.init_point; return; } fail("Payment unavailable right now.",btn,old); })
+            .then(function(jj){ if(jj.init_point){ clearPersist(); location.href=jj.init_point; return; } fail("Payment unavailable right now.",btn,old); })
             .catch(function(){ fail("Connection error, try again.",btn,old); });
         });
       });
