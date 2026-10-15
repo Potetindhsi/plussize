@@ -21,7 +21,8 @@ h1.title{font-family:'Anton',sans-serif;font-weight:400;text-transform:uppercase
 .preview-label{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:14px;margin:0 0 14px}
 .video-frame{width:100%;position:relative;line-height:0}
 .video-box{position:relative;width:100%;max-width:400px;margin:0 auto;aspect-ratio:9/16;overflow:hidden;background:#000;border-radius:12px;border:1px solid rgba(160,170,255,.4)}
-.video-box video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+.video-box video,.video-box iframe{position:absolute;inset:0;width:100%;height:100%;background:#000;border:0}
+.video-box video{object-fit:cover}
 .viewer-badge{position:absolute;top:12px;left:12px;z-index:20;display:flex;align-items:center;gap:7px;background:rgba(10,4,6,.68);border:1px solid rgba(255,255,255,.12);color:#fff;font-family:'Oswald',sans-serif;font-size:12px;padding:6px 12px;border-radius:999px;line-height:1.1}
 .dot{width:7px;height:7px;border-radius:50%;background:#ff4747;animation:pulse 1.6s infinite}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,71,71,.55)}70%{box-shadow:0 0 0 7px rgba(255,71,71,0)}100%{box-shadow:0 0 0 0 rgba(255,71,71,0)}}
@@ -69,8 +70,8 @@ footer{text-align:center;color:#8994b8;font-size:12px;padding:18px 0 40px}
 <p class="preview-label">Watch a preview 👇</p>
 <div class="video-frame">
 <span class="viewer-badge"><span class="dot"></span><span id="viewers">2,058</span>&nbsp;watching now</span>
-<div class="video-box">
-<video id="ab-video" controls playsinline preload="metadata" src="https://cdn-user.veed.io/render/premium/1894b701-68b7-431b-b1b8-1e5e2a5fe129.mp4?vref=embed-playback"></video>
+<div class="video-box" id="ab-video-box">
+<iframe id="ab-video" src="https://www.tiktok.com/player/v1/7687159415908125985" allow="fullscreen; encrypted-media; picture-in-picture" allowfullscreen loading="lazy" title="Preview"></iframe>
 </div>
 </div>
 </div>
@@ -145,10 +146,14 @@ var SYNOPSES = {
 3: {title: "The Bride Who Turned a Mafia Empire Upside Down", body: "A FORCED MARRIAGE. A DANGEROUS MAFIA BOSS. A BRIDE WHO REFUSES TO OBEY.\n\nAurora Vitale never expected her own family to betray her by selling her into marriage with Adrian DeMarco, a widowed mafia don accustomed to getting everything he wants.\n\nBut Adrian is about to discover that his new wife is nothing like the woman he expected.\n\nAurora arrives at his estate with a sharp tongue, an iron will, and no intention of becoming a prisoner in her own marriage. As she steps into the role of stepmother to his children, tensions rise, loyalties are tested, and the battle for control of the DeMarco household begins.\n\nAdrian may command a dangerous empire, but Aurora refuses to let his power define her future. And as the walls between them begin to crack, neither of them may be prepared for what comes next."}
 };
 var PREVIEWS = {
-1: "https://cdn-user.veed.io/render/premium/1894b701-68b7-431b-b1b8-1e5e2a5fe129.mp4?vref=embed-playback",
-2: "https://cdn-user.veed.io/render/premium/6b8520b0-c849-4196-a69d-84c9f0afc0b1.mp4?vref=vvp",
-3: "https://cdn-user.veed.io/render/premium/33c5442a-7f85-4e96-bb9f-e00d7ae99bbd.mp4?vref=vvp"
+1: {type: "tiktok", id: "7687159415908125985"},
+2: {type: "tiktok", id: "7687509802456534305"},
+3: {type: "tiktok", id: "7687523753533689121"}
 };
+function previewEmbed(p){
+  if (p.type === "tiktok") return {tag: "iframe", src: "https://www.tiktok.com/player/v1/" + p.id};
+  return {tag: "video", src: p.src};
+}
 var COMBOS = ["s1v1","s1v2","s1v3","s2v1","s2v2","s2v3","s3v1","s3v2","s3v3"];
 function qs(name){ try { return new URLSearchParams(window.location.search).get(name); } catch(e){ return null; } }
 function fallbackCombo(){
@@ -172,7 +177,7 @@ function render(combo, apiMode){
   document.title = SYNOPSES[s].title + " \u2014 Watch Now";
   document.getElementById("ab-title").textContent = SYNOPSES[s].title;
   document.getElementById("ab-body").textContent = SYNOPSES[s].body;
-  document.getElementById("ab-video").src = PREVIEWS[v];
+  document.getElementById("ab-video-box").innerHTML = '<iframe src="https://www.tiktok.com/player/v1/' + PREVIEWS[v].id + '" allow="fullscreen; encrypted-media; picture-in-picture" allowfullscreen loading="lazy" title="Preview"></iframe>';
   document.getElementById("ab-tag").textContent = "AB test active \u2022 combo " + combo + (apiMode ? "" : " (local mode — bind KV)");
   ["pay-premium","pay-basic"].forEach(function(id){
     var a = document.getElementById(id);

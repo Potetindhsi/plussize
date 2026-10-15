@@ -8,9 +8,9 @@ const SYNOPSES = {
   3: "The Bride Who Turned a Mafia Empire Upside Down"
 };
 const PREVIEWS = {
-  1: "1894b701-68b7-431b-b1b8-1e5e2a5fe129.mp4",
-  2: "6b8520b0-c849-4196-a69d-84c9f0afc0b1.mp4",
-  3: "33c5442a-7f85-4e96-bb9f-e00d7ae99bbd.mp4"
+  1: "tiktok 7687159415908125985",
+  2: "tiktok 7687509802456534305",
+  3: "tiktok 7687523753533689121"
 };
 
 function defaults() {
