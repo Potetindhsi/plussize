@@ -10,50 +10,50 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:ital,wght@0,400;0,500;0,600;1,400&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Inter',sans-serif;background:#080d20;color:#f3f2ff;-webkit-font-smoothing:antialiased}
+body{font-family:'Inter',sans-serif;background:#ffffff;color:#232838;-webkit-font-smoothing:antialiased}
 .wrap{max-width:520px;margin:0 auto;padding:0 22px}
-.promo-bar{position:sticky;top:0;z-index:500;background:linear-gradient(90deg,#172858,#7547d8 50%,#321b72);color:#fff;display:flex;align-items:center;justify-content:center;gap:10px;padding:9px 14px;font-family:'Oswald',sans-serif;font-weight:600;font-size:12.5px;text-align:center}
+.promo-bar{position:sticky;top:0;z-index:500;background:linear-gradient(90deg,#a82720,#dd3b32 50%,#a82720);color:#fff;display:flex;align-items:center;justify-content:center;gap:10px;padding:9px 14px;font-family:'Oswald',sans-serif;font-weight:600;font-size:12.5px;text-align:center}
 .promo-timer{background:rgba(0,0,0,.35);padding:3px 9px;border-radius:6px;font-variant-numeric:tabular-nums}
-.hero{padding:44px 0 30px;text-align:center;background:radial-gradient(circle at 50% 0%,rgba(91,74,220,.30),transparent 62%),#080d20}
-.kicker{display:inline-flex;align-items:center;gap:8px;font-family:'Oswald',sans-serif;letter-spacing:.14em;font-size:12.5px;color:#f2cf78;text-transform:uppercase;background:rgba(113,124,255,.12);border:1px solid rgba(160,170,255,.44);padding:7px 14px;border-radius:999px;margin-bottom:22px}
+.hero{padding:44px 0 30px;text-align:center;background:radial-gradient(circle at 50% 0%,rgba(239,191,131,.45),transparent 62%),#ffffff}
+.kicker{display:inline-flex;align-items:center;gap:8px;font-family:'Oswald',sans-serif;letter-spacing:.14em;font-size:12.5px;color:#7a5c0e;text-transform:uppercase;background:rgba(239,191,131,.22);border:1px solid #efbf83;padding:7px 14px;border-radius:999px;margin-bottom:22px}
 h1.title{font-family:'Anton',sans-serif;font-weight:400;text-transform:uppercase;font-size:clamp(28px,8vw,40px);line-height:1.1;margin:0 0 18px}
-.subtitle{font-size:15.5px;line-height:1.65;color:#b4bddc;max-width:460px;margin:0 auto 28px;white-space:pre-line;text-align:left}
+.subtitle{font-size:15.5px;line-height:1.65;color:#4a5168;max-width:460px;margin:0 auto 28px;white-space:pre-line;text-align:left}
 .preview-label{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:14px;margin:0 0 14px}
 .video-frame{width:100%;position:relative;line-height:0}
-.video-box{position:relative;width:100%;max-width:400px;margin:0 auto;aspect-ratio:9/16;overflow:hidden;background:#000;border-radius:12px;border:1px solid rgba(160,170,255,.4)}
+.video-box{position:relative;width:100%;max-width:400px;margin:0 auto;aspect-ratio:9/16;overflow:hidden;background:#000;border-radius:12px;border:1px solid rgba(0,0,0,.15)}
 .video-box video,.video-box iframe{position:absolute;inset:0;width:100%;height:100%;background:#000;border:0}
 .video-box video{object-fit:cover}
 .viewer-badge{position:absolute;top:12px;left:12px;z-index:20;display:flex;align-items:center;gap:7px;background:rgba(10,4,6,.68);border:1px solid rgba(255,255,255,.12);color:#fff;font-family:'Oswald',sans-serif;font-size:12px;padding:6px 12px;border-radius:999px;line-height:1.1}
 .dot{width:7px;height:7px;border-radius:50%;background:#ff4747;animation:pulse 1.6s infinite}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,71,71,.55)}70%{box-shadow:0 0 0 7px rgba(255,71,71,0)}100%{box-shadow:0 0 0 0 rgba(255,71,71,0)}}
 .offer-section{padding:40px 0 10px}
-.offer-card{background:#101a3b;border:1.5px solid rgba(117,71,216,.82);border-radius:18px;padding:28px 22px;text-align:center;position:relative}
+.offer-card{background:#ffffff;border:2px solid #efbf83;border-radius:18px;padding:28px 22px;text-align:center;position:relative;box-shadow:0 18px 40px -18px rgba(221,59,50,.35)}
 .offer-heading{font-family:'Oswald',sans-serif;font-size:18px;margin-bottom:10px}
-.price{font-family:'Anton',sans-serif;font-size:42px;color:#f2cf78;margin:6px 0}
-.benefits{list-style:none;text-align:left;margin:18px 0;font-size:14.5px;line-height:1.6;color:#d6dbf2}
+.price{font-family:'Anton',sans-serif;font-size:42px;color:#dd3b32;margin:6px 0}
+.benefits{list-style:none;text-align:left;margin:18px 0;font-size:14.5px;line-height:1.6;color:#3c4257}
 .benefits li{margin:8px 0}
 .btn{display:block;width:100%;padding:16px;border-radius:12px;font-family:'Oswald',sans-serif;font-weight:700;font-size:17px;text-decoration:none;text-align:center;cursor:pointer;border:0}
-.btn-primary{background:linear-gradient(180deg,#8b5cf6,#6d28d9);color:#fff;box-shadow:0 12px 30px -8px rgba(117,71,216,.55)}
-.btn-premium{background:linear-gradient(180deg,#f2cf78,#d4a017);color:#221a05;margin-top:12px}
-.downsell{display:block;margin-top:12px;color:#b4bddc;font-size:13px}
+.btn-primary{background:linear-gradient(180deg,#dd3b32,#a82720);color:#fff;box-shadow:0 12px 30px -8px rgba(221,59,50,.55)}
+.btn-premium{background:linear-gradient(180deg,#efbf83,#d9a441);color:#3a2a05;margin-top:12px}
+.downsell{display:block;margin-top:12px;color:#6b7194;font-size:13px}
 .love-heading{text-align:center;font-family:'Oswald',sans-serif;margin:34px 0 16px;font-size:21px}
 .testi{display:grid;gap:12px}
-.testi img{width:100%;border-radius:12px;border:1px solid rgba(255,255,255,.12)}
-.guarantee-card{background:#0d1530;border:1px solid rgba(143,157,255,.3);border-radius:16px;padding:24px;margin-top:30px;text-align:center}
-.faq-card{background:#0d1530;border:1px solid rgba(143,157,255,.3);border-radius:16px;padding:20px;margin:26px 0}
-.faq-card details{border-bottom:1px solid rgba(255,255,255,.08);padding:12px 0}
+.testi img{width:100%;border-radius:12px;border:1px solid rgba(0,0,0,.1)}
+.guarantee-card{background:#fffdf7;border:1px solid #efbf83;border-radius:16px;padding:24px;margin-top:30px;text-align:center}
+.faq-card{background:#fffdf7;border:1px solid #efbf83;border-radius:16px;padding:20px;margin:26px 0}
+.faq-card details{border-bottom:1px solid rgba(0,0,0,.08);padding:12px 0}
 .faq-card summary{cursor:pointer;font-weight:600;font-size:15px}
-.faq-card p{color:#b4bddc;font-size:14px;margin-top:8px;line-height:1.6}
-footer{text-align:center;color:#8994b8;font-size:12px;padding:18px 0 40px}
+.faq-card p{color:#4a5168;font-size:14px;margin-top:8px;line-height:1.6}
+footer{text-align:center;color:#8a8fa8;font-size:12px;padding:18px 0 40px}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;padding:20px;z-index:1000}
 .modal-overlay.active{display:flex}
-.modal-card{background:#101a3b;border-radius:18px;max-width:420px;width:100%;padding:28px 22px;text-align:center;position:relative;border:1px solid rgba(242,207,120,.5)}
-.modal-close{position:absolute;top:10px;right:14px;background:none;border:0;color:#fff;font-size:20px;cursor:pointer}
-.badge{background:#f2cf78;color:#221a05;font-family:'Oswald',sans-serif;font-size:12px;font-weight:700;padding:5px 12px;border-radius:999px;display:inline-block;margin-bottom:12px}
+.modal-card{background:#ffffff;border-radius:18px;max-width:420px;width:100%;padding:28px 22px;text-align:center;position:relative;border:2px solid #efbf83;color:#232838}
+.modal-close{position:absolute;top:10px;right:14px;background:none;border:0;color:#232838;font-size:20px;cursor:pointer}
+.badge{background:#efbf83;color:#3a2a05;font-family:'Oswald',sans-serif;font-size:12px;font-weight:700;padding:5px 12px;border-radius:999px;display:inline-block;margin-bottom:12px}
 .buy-toast{position:fixed;bottom:16px;left:16px;right:16px;max-width:380px;background:#fff;color:#111;border-radius:12px;padding:12px 14px;display:none;z-index:900;box-shadow:0 10px 30px rgba(0,0,0,.4);font-size:13.5px}
 .buy-toast.show{display:block}
 .ab-tag{font-size:11px;color:#5b658a;text-align:center;padding:8px}
-.cover{width:min(74%,260px);margin:0 auto 22px;border-radius:14px;overflow:hidden;border:1px solid rgba(160,170,255,.55);box-shadow:0 20px 45px -14px rgba(0,0,0,.75)}
+.cover{width:min(74%,260px);margin:0 auto 22px;border-radius:14px;overflow:hidden;border:1px solid #efbf83;box-shadow:0 20px 45px -14px rgba(221,59,50,.35)}
 .cover img{width:100%;display:block}
 </style>
 </head>
@@ -98,7 +98,7 @@ footer{text-align:center;color:#8994b8;font-size:12px;padding:18px 0 40px}
 
 <div class="guarantee-card">
 <h3>7-Day Guarantee</h3>
-<p style="color:#b4bddc;font-size:14px;margin-top:8px;line-height:1.6">If you're not 100% satisfied, we refund 100% within 7 days. No hassle, no questions.</p>
+<p style="color:#4a5168;font-size:14px;margin-top:8px;line-height:1.6">If you're not 100% satisfied, we refund 100% within 7 days. No hassle, no questions.</p>
 </div>
 
 <div class="faq-card">
@@ -120,7 +120,7 @@ footer{text-align:center;color:#8994b8;font-size:12px;padding:18px 0 40px}
 <span class="badge">✕ UPGRADE PREMIUM</span>
 <h3>Premium Pack</h3>
 <p class="price">$10.00</p>
-<p style="color:#b4bddc;font-size:14px">Lifetime access</p>
+<p style="color:#4a5168;font-size:14px">Lifetime access</p>
 <ul class="benefits">
 <li>• Full catalog of series</li>
 <li>• Daily new releases</li>
