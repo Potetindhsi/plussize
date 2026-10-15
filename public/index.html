@@ -127,8 +127,8 @@ footer{text-align:center;color:#8994b8;font-size:12px;padding:18px 0 40px}
 <li>• All trending dramas</li>
 <li>• Never pay for a series again 😉</li>
 </ul>
-<a class="btn btn-premium" id="pay-premium" href="https://herogateway.com/c/KFGJJQSS/AQQUP98V">Get Premium for $10.00</a>
-<a class="downsell" id="pay-basic" href="https://herogateway.com/c/Q2FNSJ77/WZSFVA74">I want only this series for $5.00</a>
+<a class="btn btn-premium" id="pay-premium" href="/checkout-10.html">Get Premium for $10.00</a>
+<a class="downsell" id="pay-basic" href="/checkout-5.html">I want only this series for $5.00</a>
 </div>
 </div>
 
@@ -179,9 +179,16 @@ function render(combo, apiMode){
   document.getElementById("ab-body").textContent = SYNOPSES[s].body;
   document.getElementById("ab-video-box").innerHTML = '<iframe src="https://www.tiktok.com/player/v1/' + PREVIEWS[v].id + '" allow="fullscreen; encrypted-media; picture-in-picture" allowfullscreen loading="lazy" title="Preview"></iframe>';
   document.getElementById("ab-tag").textContent = "AB test active \u2022 combo " + combo + (apiMode ? "" : " (local mode — bind KV)");
+  var fwd = "";
+  try {
+    var keep = new URLSearchParams(window.location.search);
+    keep.delete("ab");
+    var ks = keep.toString();
+    if (ks) fwd = "&" + ks;
+  } catch(e){}
   ["pay-premium","pay-basic"].forEach(function(id){
     var a = document.getElementById(id);
-    if (a && a.href.indexOf("ab=") === -1) a.href += (a.href.indexOf("?") === -1 ? "?" : "&") + "ab=" + combo;
+    if (a && a.href.indexOf("ab=") === -1) a.href += (a.href.indexOf("?") === -1 ? "?" : "&") + "ab=" + combo + fwd;
   });
   sendTrack(combo, "view");
   ["pay-premium","pay-basic"].forEach(function(id){

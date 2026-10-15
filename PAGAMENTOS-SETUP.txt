@@ -1,0 +1,39 @@
+CHECKOUTS $5/$10 + RECEBER EM STABLECOIN — SETUP
+================================================
+Páginas: /checkout-5.html (basic $5) e /checkout-10.html (premium $10).
+Fluxo: nome+email (obrigatórios) -> /api/checkout salva venda pendente com UTMs+AB
+-> redireciona p/ fatura NOWPayments -> webhook confirma -> /acesso.html libera
++ email (se RESEND configurado). Dashboard: /admin-vendas.html (Mine123).
+
+PASSO 1 — NOWPayments (API gratuita, payouts em USDT etc.)
+1. Crie conta em nowpayments.io (só email p/ começar, modo crypto).
+2. Dashboard > API Keys > Create, copie a PUBLIC key (x-api-key).
+3. Dashboard > Settings > IPN: invente um IPN Secret forte e salve lá.
+   Callback URL a cadastrar: https://plussizes.emmett-hermann.workers.dev/api/webhook/nowpayments
+4. Em Payments > Coins/payouts, configure a moeda de recebimento (ex: USDT)
+   e o endereço da sua carteira.
+5. No Worker plussizes > Settings > Variables and secrets > Add:
+   - NOWPAYMENTS_API_KEY = <sua key>  (marcar Encrypt/secret)
+   - NOWPAYMENTS_IPN_SECRET = <seu ipn secret> (secret)
+   Depois: Deployments > Retry deployment.
+
+PASSO 2 — Email de acesso (opcional, Resend tem plano gratuito)
+1. resend.com > API Keys > crie uma key. 2. Worker secrets:
+   RESEND_API_KEY = <key>  (+ RESEND_FROM se tiver domínio verificado,
+   ex: "Access <access@seudominio.com>"). Sem isso, o acesso sai no
+   /acesso.html e o dashboard mostra "failed:no RESEND_API_KEY".
+
+PASSO 3 — Links de entrega
+Edite ACCESS_LINKS no worker.js (basic/premium) com os links reais
+dos episódios/catálogo, commit + push.
+
+AVISO HONESTO (leia):
+- NÃO existe processador legítimo de cartão→stablecoin "sem KYC":
+  cartão exige KYC em algum ponto (bandeiras/leis AML). Quem prometer
+  isso é golpe ou opera fora da lei.
+- O que foi ligado: NOWPayments (conta só-email p/ crypto; payouts em
+  stablecoin p/ sua carteira). Compras com CARTÃO via parceiros deles
+  exigem verificação DO COMPRADOR — normal e legítimo.
+- Alternativa 100% sem KYC de verdade: BTCPay Server auto-hospedado
+  (grátis, open-source), porém só cripto (sem cartão).
+- Vender p/ americanos pode gerar obrigação fiscal — fale com contador.

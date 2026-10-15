@@ -65,6 +65,107 @@ function aggregate(ev) {
   return st;
 }
 
+// ---------- CHECKOUT + SALES (NOWPayments, stablecoin payouts) ----------
+const PRODUCTS = {
+  basic: {
+    amount: 5,
+    currency: "USD",
+    name: "Aurora Vitale — Full Season Access",
+    desc: "Full season, lifetime access, all episodes",
+  },
+  premium: {
+    amount: 10,
+    currency: "USD",
+    name: "Premium Pack — Full Catalog Access",
+    desc: "Full catalog + daily releases, lifetime access",
+  },
+};
+
+// Configure your content links here (shown on /acesso.html after payment)
+const ACCESS_LINKS = {
+  basic: ["https://www.tiktok.com/@dramastop7"],
+  premium: ["https://www.tiktok.com/@dramastop7"],
+};
+
+const MAX_SALES = 5000;
+
+function orderId() {
+  const a = new Uint8Array(6);
+  crypto.getRandomValues(a);
+  return (
+    "ORD-" +
+    Date.now().toString(36).toUpperCase() +
+    "-" +
+    Array.from(a, (b) => b.toString(16).padStart(2, "0")).join("").toUpperCase().slice(0, 6)
+  );
+}
+
+async function readSales(env) {
+  try {
+    const raw = await env.AB_KV.get("sales");
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return [];
+}
+
+async function writeSales(env, sales) {
+  if (sales.length > MAX_SALES) sales = sales.slice(sales.length - MAX_SALES);
+  await env.AB_KV.put("sales", JSON.stringify(sales));
+}
+
+function sortKeys(v) {
+  if (Array.isArray(v)) return v.map(sortKeys);
+  if (v && typeof v === "object") {
+    const o = {};
+    for (const k of Object.keys(v).sort()) o[k] = sortKeys(v[k]);
+    return o;
+  }
+  return v;
+}
+
+async function verifyNowSig(body, sigHex, secret) {
+  try {
+    const msg = JSON.stringify(sortKeys(body));
+    const key = await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(secret),
+      { name: "HMAC", hash: "SHA-512" },
+      false,
+      ["sign"]
+    );
+    const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(msg));
+    const hex = Array.from(new Uint8Array(mac), (b) => b.toString(16).padStart(2, "0")).join("");
+    return hex.toLowerCase() === String(sigHex || "").toLowerCase();
+  } catch (e) {
+    return false;
+  }
+}
+
+async function sendAccessEmail(env, sale) {
+  // Optional: set RESEND_API_KEY + RESEND_FROM in Worker secrets/vars.
+  if (!env.RESEND_API_KEY) return { sent: false, reason: "no RESEND_API_KEY" };
+  try {
+    const links = (ACCESS_LINKS[sale.product] || []).map((u) => `<li><a href="${u}">${u}</a></li>`).join("");
+    const r = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + env.RESEND_API_KEY,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        from: env.RESEND_FROM || "Access <onboarding@resend.dev>",
+        to: sale.email,
+        subject: "Your access is ready — " + sale.productName,
+        html: `<p>Hi ${sale.name},</p><p>Payment confirmed (<b>${sale.id}</b>). Your access:</p><ul>${links}</ul>`,
+      }),
+    });
+    const j = await r.json().catch(() => ({}));
+    return r.ok ? { sent: true, id: j.id } : { sent: false, reason: JSON.stringify(j).slice(0, 200) };
+  } catch (e) {
+    return { sent: false, reason: String((e && e.message) || e).slice(0, 200) };
+  }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -136,6 +237,165 @@ export default {
           from,
           to,
           events: ev.length,
+        });
+      } catch (e) {
+        return json({ error: String((e && e.message) || e) }, 500);
+      }
+    }
+
+    // POST /api/checkout {product:"basic"|"premium", name, email, utms, ab}
+    if (url.pathname === "/api/checkout") {
+      if (request.method !== "POST") return json({ error: "method not allowed" }, 405);
+      if (!env.AB_KV) return json({ error: "KV not bound (AB_KV)" }, 500);
+      try {
+        const body = await request.json().catch(() => ({}));
+        const product = body.product === "premium" ? "premium" : "basic";
+        const name = String(body.name || "").trim().slice(0, 80);
+        const email = String(body.email || "").trim().toLowerCase().slice(0, 120);
+        if (name.length < 2) return json({ error: "name required" }, 400);
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+          return json({ error: "valid email required" }, 400);
+        const u = body.utms && typeof body.utms === "object" ? body.utms : {};
+        const sale = {
+          id: orderId(),
+          ts: Date.now(),
+          name,
+          email,
+          product,
+          productName: PRODUCTS[product].name,
+          amount: PRODUCTS[product].amount,
+          currency: PRODUCTS[product].currency,
+          status: "pending",
+          utms: {
+            source: String(u.source || "").slice(0, 80),
+            medium: String(u.medium || "").slice(0, 80),
+            campaign: String(u.campaign || "").slice(0, 80),
+            term: String(u.term || "").slice(0, 80),
+            content: String(u.content || "").slice(0, 80),
+            ab: VALID.test(body.ab) ? body.ab : "",
+          },
+          invoice_id: "",
+          pay_currency: "",
+          tx: "",
+          email_status: "",
+        };
+        if (!env.NOWPAYMENTS_API_KEY)
+          return json({ error: "payments not configured (NOWPAYMENTS_API_KEY)", order_id: sale.id }, 500);
+        const origin = url.origin;
+        const inv = await fetch("https://api.nowpayments.io/v1/invoice", {
+          method: "POST",
+          headers: { "x-api-key": env.NOWPAYMENTS_API_KEY, "content-type": "application/json" },
+          body: JSON.stringify({
+            price_amount: PRODUCTS[product].amount,
+            price_currency: PRODUCTS[product].currency.toLowerCase(),
+            order_id: sale.id,
+            order_description: PRODUCTS[product].desc,
+            ipn_callback_url: origin + "/api/webhook/nowpayments",
+            success_url: origin + "/acesso.html?order=" + encodeURIComponent(sale.id),
+            cancel_url: origin + (product === "premium" ? "/checkout-10.html" : "/checkout-5.html"),
+          }),
+        });
+        const invJ = await inv.json().catch(() => ({}));
+        if (!inv.ok || !invJ.id) {
+          sale.status = "invoice_failed";
+          sale.email_status = JSON.stringify(invJ).slice(0, 200);
+          const all = await readSales(env);
+          all.push(sale);
+          await writeSales(env, all);
+          return json({ error: "invoice failed", detail: JSON.stringify(invJ).slice(0, 300) }, 502);
+        }
+        sale.invoice_id = String(invJ.id);
+        const all = await readSales(env);
+        all.push(sale);
+        await writeSales(env, all);
+        const payUrl = invJ.invoice_url || "https://nowpayments.io/payment/?iid=" + invJ.id;
+        return json({ ok: true, order_id: sale.id, invoice_url: payUrl });
+      } catch (e) {
+        return json({ error: String((e && e.message) || e) }, 500);
+      }
+    }
+
+    // POST /api/webhook/nowpayments (NOWPayments IPN)
+    if (url.pathname === "/api/webhook/nowpayments") {
+      if (request.method !== "POST") return json({ error: "method not allowed" }, 405);
+      if (!env.AB_KV) return json({ error: "KV not bound" }, 500);
+      try {
+        const body = await request.json().catch(() => null);
+        if (!body) return json({ error: "bad json" }, 400);
+        const sig = request.headers.get("x-nowpayments-sig") || "";
+        if (!env.NOWPAYMENTS_IPN_SECRET || !(await verifyNowSig(body, sig, env.NOWPAYMENTS_IPN_SECRET)))
+          return json({ error: "bad signature" }, 401);
+        const orderId = String(body.order_id || "");
+        const status = String(body.payment_status || "").toLowerCase();
+        const sales = await readSales(env);
+        const s = sales.find((x) => x.id === orderId);
+        if (!s) return json({ ok: true, note: "order not found" });
+        s.pay_currency = String(body.pay_currency || "");
+        s.tx = String(body.payment_id || body.id || "");
+        if ((status === "finished" || status === "confirmed") && s.status !== "paid") {
+          s.status = "paid";
+          s.paid_ts = Date.now();
+          const em = await sendAccessEmail(env, s);
+          s.email_status = em.sent ? "sent:" + (em.id || "") : "failed:" + (em.reason || "");
+          await writeSales(env, sales);
+        } else if (s.status !== "paid") {
+          s.status = "ipn:" + status;
+          await writeSales(env, sales);
+        }
+        return json({ ok: true });
+      } catch (e) {
+        return json({ error: String((e && e.message) || e) }, 500);
+      }
+    }
+
+    // GET /api/sales?password=Mine123&from=&to=&product=&status=
+    if (url.pathname === "/api/sales") {
+      if (url.searchParams.get("password") !== PASSWORD)
+        return json({ error: "wrong password" }, 401);
+      if (!env.AB_KV) return json({ error: "KV not bound (AB_KV)" }, 500);
+      try {
+        const q = url.searchParams;
+        const from = q.get("from") ? parseInt(q.get("from"), 10) || 0 : 0;
+        const to = q.get("to") ? parseInt(q.get("to"), 10) || 0 : 0;
+        const pf = q.get("product") || "";
+        const sf = q.get("status") || "";
+        const all = await readSales(env);
+        const sales = all.filter(
+          (x) =>
+            (!from || x.ts >= from) &&
+            (!to || x.ts <= to) &&
+            (!pf || x.product === pf) &&
+            (!sf || x.status === sf)
+        ).sort((a, b) => b.ts - a.ts);
+        let revenue = 0;
+        for (const x of sales) if (x.status === "paid") revenue += Number(x.amount) || 0;
+        return json({ sales, total: sales.length, paid: sales.filter((x) => x.status === "paid").length, revenue });
+      } catch (e) {
+        return json({ error: String((e && e.message) || e) }, 500);
+      }
+    }
+
+    // GET /api/access?order=ORD-...  or ?email=
+    if (url.pathname === "/api/access") {
+      if (!env.AB_KV) return json({ error: "KV not bound" }, 500);
+      try {
+        const q = url.searchParams;
+        const order = q.get("order") || "";
+        const email = (q.get("email") || "").trim().toLowerCase();
+        const all = await readSales(env);
+        const found = all.filter(
+          (x) =>
+            x.status === "paid" &&
+            ((order && x.id === order) || (email && x.email === email))
+        );
+        if (!found.length) return json({ error: "no paid order found" }, 404);
+        const latest = found[found.length - 1];
+        return json({
+          ok: true,
+          name: latest.name,
+          product: latest.product,
+          productName: latest.productName,
+          links: ACCESS_LINKS[latest.product] || [],
         });
       } catch (e) {
         return json({ error: String((e && e.message) || e) }, 500);

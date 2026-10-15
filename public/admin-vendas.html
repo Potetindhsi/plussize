@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sales Dashboard</title>
+<style>
+body{font-family:Arial;background:#080d20;color:#e8ebff;margin:0;padding:20px}
+.wrap{max-width:1100px;margin:0 auto}
+.card{background:#101a3b;border:1px solid rgba(143,157,255,.3);border-radius:14px;padding:18px;margin-bottom:18px}
+h2{margin:0 0 12px;font-size:20px} h3{margin:14px 0 8px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{padding:9px 8px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left;vertical-align:top}
+th{color:#b4bddc;font-size:11.5px;text-transform:uppercase}
+tr.paid td:first-child{border-left:3px solid #22c55e}
+tr.pending td:first-child{border-left:3px solid #f2cf78}
+button,.btn{padding:10px 16px;border-radius:8px;border:0;background:#7547d8;color:#fff;font-weight:700;cursor:pointer;font-size:13px}
+.btn-gray{background:#2a3358}
+small{color:#8994b8}
+input,select{padding:9px;border-radius:8px;border:1px solid #444;background:#0a0f24;color:#fff;font-size:13px}
+.err{color:#ff7b7b}
+#login{background:#101a3b;padding:28px;border-radius:14px;border:1px solid #333;max-width:340px;margin:60px auto;text-align:center}
+#login input{width:220px;margin-bottom:10px}
+.kpis{display:flex;gap:12px;flex-wrap:wrap}
+.kpi{flex:1;min-width:140px;background:#0d1530;border-radius:12px;padding:14px;text-align:center}
+.kpi b{font-size:24px;display:block}
+</style>
+</head>
+<body>
+<div id="login">
+<h3>Sales Login</h3>
+<p class="err" id="login-err" style="display:none"></p>
+<input type="password" id="pw" placeholder="Password" autofocus>
+<p><button id="login-btn">Enter</button></p>
+</div>
+
+<div class="wrap" id="dash" style="display:none">
+<h2>💰 Sales — $5 / $10 USD</h2>
+<div class="card">
+<div class="kpis">
+<div class="kpi"><small>Revenue (paid)</small><b id="k-rev">$0</b></div>
+<div class="kpi"><small>Paid sales</small><b id="k-paid">0</b></div>
+<div class="kpi"><small>Total orders</small><b id="k-total">0</b></div>
+</div>
+</div>
+<div class="card">
+<h3>🔎 Filters</h3>
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+<label><small>From</small><br><input type="date" id="f-from"></label>
+<label><small>To</small><br><input type="date" id="f-to"></label>
+<label><small>Product</small><br><select id="f-product"><option value="">All</option><option value="basic">$5 basic</option><option value="premium">$10 premium</option></select></label>
+<label><small>Status</small><br><select id="f-status"><option value="">All</option><option value="paid">paid</option><option value="pending">pending</option></select></label>
+<button class="btn" id="f-apply">Filter</button>
+<button class="btn-gray btn" id="f-today">Today</button>
+<button class="btn-gray btn" id="f-all">All</button>
+<button class="btn-gray btn" id="refresh">↻</button>
+<button class="btn-gray btn" id="csv">⬇ CSV</button>
+</div>
+</div>
+<div class="card">
+<h3>🧾 Orders</h3>
+<table id="t"><tr><th>Date</th><th>Customer</th><th>Product</th><th>$</th><th>Status</th><th>UTMs / AB</th><th>Email delivery</th></tr></table>
+</div>
+</div>
+
+<script>
+(function(){
+var pw = "", CACHE = [];
+function esc(t){ var d=document.createElement("div"); d.textContent=(t==null?"":String(t)); return d.innerHTML; }
+function cvr(c,v){ return v>0 ? (c/v*100) : 0; }
+function dayStart(d){ d.setHours(0,0,0,0); return d.getTime(); }
+function dayEnd(d){ d.setHours(23,59,59,999); return d.getTime(); }
+function showErr(m){ var e=document.getElementById("login-err"); e.textContent=m; e.style.display="block"; }
+function load(){
+  var q = "/api/sales?password=" + encodeURIComponent(pw);
+  var f = document.getElementById("f-from").value, t = document.getElementById("f-to").value;
+  if (f) q += "&from=" + dayStart(new Date(f + "T00:00:00"));
+  if (t) q += "&to=" + dayEnd(new Date(t + "T00:00:00"));
+  var p = document.getElementById("f-product").value, s = document.getElementById("f-status").value;
+  if (p) q += "&product=" + p;
+  if (s) q += "&status=" + s;
+  fetch(q, {cache: "no-store"})
+    .then(function(r){ return r.json().then(function(j){ return {s: r.status, j: j}; }); })
+    .then(function(res){
+      if (res.s === 401) { showErr("Wrong password."); return; }
+      if (res.s !== 200) { showErr("API error: " + ((res.j && res.j.error) || res.s)); return; }
+      document.getElementById("login").style.display = "none";
+      document.getElementById("dash").style.display = "block";
+      CACHE = res.j.sales || [];
+      document.getElementById("k-rev").textContent = "$" + Number(res.j.revenue || 0).toFixed(2);
+      document.getElementById("k-paid").textContent = res.j.paid || 0;
+      document.getElementById("k-total").textContent = res.j.total || 0;
+      var html = "";
+      CACHE.forEach(function(x){
+        var u = x.utms || {};
+        var utm = [u.source && ("src:" + u.source), u.medium && ("med:" + u.medium), u.campaign && ("cmp:" + u.campaign), u.ab && ("ab:" + u.ab)].filter(Boolean).join(" ");
+        html += "<tr class='" + (x.status === "paid" ? "paid" : "pending") + "'><td><small>" + esc(new Date(x.ts).toLocaleString()) + "<br>" + esc(x.id) + "</small></td><td>" + esc(x.name) + "<br><small>" + esc(x.email) + "</small></td><td>" + esc(x.product) + "</td><td>$" + esc(x.amount) + "</td><td><b>" + esc(x.status) + "</b></td><td><small>" + esc(utm || "—") + "</small></td><td><small>" + esc(x.email_status || "—") + "</small></td></tr>";
+      });
+      document.getElementById("t").innerHTML = "<tr><th>Date</th><th>Customer</th><th>Product</th><th>$</th><th>Status</th><th>UTMs / AB</th><th>Email delivery</th></tr>" + (html || "<tr><td colspan='7'>No sales yet.</td></tr>");
+    })
+    .catch(function(){ showErr("API error — check Worker + KV."); });
+}
+document.getElementById("login-btn").addEventListener("click", function(){ pw = document.getElementById("pw").value; load(); });
+document.getElementById("pw").addEventListener("keydown", function(e){ if (e.key === "Enter") { pw = e.target.value; load(); } });
+document.getElementById("refresh").addEventListener("click", load);
+document.getElementById("f-apply").addEventListener("click", load);
+document.getElementById("f-today").addEventListener("click", function(){
+  var d = new Date();
+  document.getElementById("f-from").value = d.toISOString().slice(0, 10);
+  document.getElementById("f-to").value = d.toISOString().slice(0, 10);
+  load();
+});
+document.getElementById("f-all").addEventListener("click", function(){
+  document.getElementById("f-from").value = ""; document.getElementById("f-to").value = "";
+  document.getElementById("f-product").value = ""; document.getElementById("f-status").value = "";
+  load();
+});
+document.getElementById("csv").addEventListener("click", function(){
+  var rows = [["date","order","name","email","product","amount","status","utm_source","utm_medium","utm_campaign","ab","email_status"]];
+  CACHE.forEach(function(x){
+    var u = x.utms || {};
+    rows.push([new Date(x.ts).toISOString(), x.id, x.name, x.email, x.product, x.amount, x.status, u.source||"", u.medium||"", u.campaign||"", u.ab||"", x.email_status||""]);
+  });
+  var csv = rows.map(function(r){ return r.map(function(c){ return '"' + String(c).replace(/"/g, '""') + '"'; }).join(","); }).join("\n");
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], {type: "text/csv"}));
+  a.download = "sales.csv"; a.click();
+});
+})();
+</script>
+</body>
+</html>

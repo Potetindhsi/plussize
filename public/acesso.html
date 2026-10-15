@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Your Access</title>
+<meta name="robots" content="noindex">
+<style>
+body{font-family:Arial;background:#080d20;color:#e8ebff;display:flex;justify-content:center;padding:40px 16px;margin:0}
+.card{max-width:460px;width:100%;background:#101a3b;border:1px solid rgba(117,71,216,.6);border-radius:16px;padding:28px 24px;text-align:center}
+input{width:100%;padding:12px;border-radius:10px;border:1px solid #444;background:#0a0f24;color:#fff;margin:8px 0;box-sizing:border-box}
+button{padding:12px 22px;border-radius:10px;border:0;background:#7547d8;color:#fff;font-weight:700;cursor:pointer}
+a{color:#f2cf78}
+.err{color:#ff7b7b}
+.links{text-align:left;margin-top:14px}
+</style>
+</head>
+<body>
+<div class="card" id="box"><h2>🔓 Your Access</h2><p id="msg">Checking your order…</p></div>
+<script>
+(function(){
+function qs(n){ try { return new URLSearchParams(location.search).get(n) || ""; } catch(e){ return ""; } }
+function show(html){ document.getElementById("box").innerHTML = html; }
+function esc(t){ var d = document.createElement("div"); d.textContent = t; return d.innerHTML; }
+function render(j){
+  var links = (j.links || []).map(function(u){ return "<li><a href='" + u + "'>" + esc(u) + "</a></li>"; }).join("");
+  show("<h2>✅ Payment confirmed, " + esc(j.name) + "!</h2><p>" + esc(j.productName || "") + "</p><div class='links'><p><b>Your links:</b></p><ul>" + links + "</ul><p><small>A copy was also sent to your email.</small></p></div>");
+}
+var order = qs("order");
+if (order) {
+  fetch("/api/access?order=" + encodeURIComponent(order), {cache: "no-store"})
+    .then(function(r){ return r.json().then(function(j){ return {s: r.status, j: j}; }); })
+    .then(function(res){
+      if (res.s === 200) render(res.j);
+      else show("<h2>⏳ Confirming payment…</h2><p>Crypto payments take a few minutes. This page activates automatically — wait a bit and refresh. Or enter your email below:</p><input id='em' placeholder='you@email.com'><p><button onclick=\"lookup()\">Check</button></p><p class='err'>" + esc((res.j && res.j.error) || "") + "</p>");
+    });
+} else {
+  show("<h2>🔓 Your Access</h2><p>Enter the email used at checkout:</p><input id='em' placeholder='you@email.com'><p><button onclick=\"lookup()\">Check</button></p><p id='e2'></p>");
+}
+window.lookup = function(){
+  var em = (document.getElementById("em") || {}).value || "";
+  fetch("/api/access?email=" + encodeURIComponent(em), {cache: "no-store"})
+    .then(function(r){ return r.json().then(function(j){ return {s: r.status, j: j}; }); })
+    .then(function(res){ if (res.s === 200) render(res.j); else { var e = document.getElementById("e2"); if (e) e.innerHTML = "<span class='err'>No paid order for this email yet.</span>"; } });
+};
+})();
+</script>
+</body>
+</html>

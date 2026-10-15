@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Checkout — Full Season Access $5.00</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#080d20;color:#f3f2ff;min-height:100vh;display:flex;justify-content:center;padding:28px 16px}
+.card{width:100%;max-width:440px;background:#101a3b;border:1px solid rgba(117,71,216,.6);border-radius:18px;padding:26px 22px;height:fit-content}
+.badge{display:inline-block;background:#f2cf78;color:#221a05;font-family:'Oswald';font-size:12px;font-weight:700;padding:4px 12px;border-radius:999px;margin-bottom:10px}
+h1{font-family:'Oswald';font-size:22px;margin-bottom:4px}
+.price{font-size:38px;font-weight:700;color:#f2cf78;margin:10px 0 2px}
+.per{color:#b4bddc;font-size:13px;margin-bottom:14px}
+ul{list-style:none;font-size:14px;color:#d6dbf2;margin-bottom:18px}
+ul li{margin:7px 0}
+label{display:block;font-size:13px;color:#b4bddc;margin:12px 0 5px}
+input{width:100%;padding:13px;border-radius:10px;border:1px solid #3a4570;background:#0a0f24;color:#fff;font-size:15px}
+input:focus{outline:none;border-color:#8b5cf6}
+.notice{background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.5);border-radius:10px;padding:11px 13px;font-size:13px;line-height:1.55;color:#d6dbf2;margin:16px 0}
+.btn{width:100%;padding:16px;border:0;border-radius:12px;background:linear-gradient(180deg,#22c55e,#15803d);color:#fff;font-weight:700;font-size:17px;cursor:pointer;margin-top:4px}
+.btn:disabled{opacity:.6;cursor:wait}
+.err{display:none;background:rgba(255,71,71,.12);border:1px solid rgba(255,71,71,.5);color:#ffb4b4;border-radius:10px;padding:10px 12px;font-size:13px;margin-top:12px}
+.secure{text-align:center;color:#8994b8;font-size:12px;margin-top:14px}
+</style>
+</head>
+<body>
+<div class="card">
+<span class="badge">CHECKOUT • USD</span>
+<h1>Aurora Vitale — Full Season</h1>
+<p class="price">$5.00</p>
+<p class="per">One-time payment • No subscription</p>
+<ul>
+<li>✅ All episodes, full season</li>
+<li>✅ Instant + lifetime access</li>
+<li>✅ Watch on any device</li>
+</ul>
+<label for="name">Full name</label>
+<input id="name" type="text" placeholder="Jane Smith" autocomplete="name">
+<label for="email">Email (access is sent here)</label>
+<input id="email" type="email" placeholder="you@email.com" autocomplete="email">
+<div class="notice">📧 <b>Your access link is sent to this email immediately after payment is confirmed.</b> Double-check the spelling.</div>
+<button class="btn" id="pay">Pay $5.00 →</button>
+<p class="err" id="err"></p>
+<p class="secure">🔒 Secure payment • Card & crypto accepted via processor</p>
+</div>
+<script>
+(function(){
+function qs(n){ try { return new URLSearchParams(location.search).get(n) || ""; } catch(e){ return ""; } }
+var UTMS = {source: qs("utm_source"), medium: qs("utm_medium"), campaign: qs("utm_campaign"), term: qs("utm_term"), content: qs("utm_content")};
+var AB = qs("ab");
+document.getElementById("pay").addEventListener("click", function(){
+  var name = document.getElementById("name").value.trim();
+  var email = document.getElementById("email").value.trim().toLowerCase();
+  var err = document.getElementById("err");
+  err.style.display = "none";
+  if (name.length < 2) { err.textContent = "Please enter your name."; err.style.display = "block"; return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { err.textContent = "Please enter a valid email."; err.style.display = "block"; return; }
+  var btn = document.getElementById("pay");
+  btn.disabled = true; btn.textContent = "Processing…";
+  fetch("/api/checkout", {method: "POST", headers: {"content-type": "application/json"},
+    body: JSON.stringify({product: "basic", name: name, email: email, utms: UTMS, ab: AB})})
+    .then(function(r){ return r.json().then(function(j){ return {s: r.status, j: j}; }); })
+    .then(function(res){
+      if (res.j.invoice_url) { location.href = res.j.invoice_url; return; }
+      err.textContent = (res.j && res.j.error) || "Payment unavailable, try again.";
+      err.style.display = "block"; btn.disabled = false; btn.textContent = "Pay $5.00 →";
+    })
+    .catch(function(){ err.textContent = "Connection error, try again."; err.style.display = "block"; btn.disabled = false; btn.textContent = "Pay $5.00 →"; });
+});
+})();
+</script>
+</body>
+</html>
