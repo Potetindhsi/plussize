@@ -29,6 +29,15 @@ export async function onRequestPost({ request, env }) {
     if (event === "view") st[combo].views++;
     else st[combo].clicks++;
     await env.AB_KV.put("ab_stats", JSON.stringify(st));
+    try {
+      const MAX = 20000;
+      let ev = [];
+      const rawEv = await env.AB_KV.get("ab_events");
+      if (rawEv) ev = JSON.parse(rawEv);
+      ev.push({ t: Date.now(), c: combo, e: event });
+      if (ev.length > MAX) ev = ev.slice(ev.length - MAX);
+      await env.AB_KV.put("ab_events", JSON.stringify(ev));
+    } catch (e) {}
     return new Response(JSON.stringify({ ok: true }), { headers });
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e && e.message || e) }), { status: 500, headers });

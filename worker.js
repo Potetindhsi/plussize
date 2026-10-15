@@ -36,6 +36,35 @@ async function readStats(env) {
   return raw ? { ...defaults(), ...JSON.parse(raw) } : defaults();
 }
 
+const MAX_EVENTS = 20000;
+
+async function logEvent(env, combo, event) {
+  let ev = [];
+  try {
+    const raw = await env.AB_KV.get("ab_events");
+    if (raw) ev = JSON.parse(raw);
+  } catch (e) {}
+  ev.push({ t: Date.now(), c: combo, e: event });
+  if (ev.length > MAX_EVENTS) ev = ev.slice(ev.length - MAX_EVENTS);
+  await env.AB_KV.put("ab_events", JSON.stringify(ev));
+}
+
+function filterEvents(ev, from, to) {
+  return ev.filter(
+    (x) => (!from || x.t >= from) && (!to || x.t <= to)
+  );
+}
+
+function aggregate(ev) {
+  const st = defaults();
+  for (const x of ev) {
+    if (!st[x.c]) continue;
+    if (x.e === "view") st[x.c].views++;
+    else if (x.e === "click") st[x.c].clicks++;
+  }
+  return st;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -74,6 +103,9 @@ export default {
         if (event === "view") st[combo].views++;
         else st[combo].clicks++;
         await env.AB_KV.put("ab_stats", JSON.stringify(st));
+        try {
+          await logEvent(env, combo, event);
+        } catch (e) {}
         return json({ ok: true });
       } catch (e) {
         return json({ error: String((e && e.message) || e) }, 500);
@@ -85,7 +117,26 @@ export default {
         return json({ error: "wrong password" }, 401);
       if (!env.AB_KV) return json({ error: "KV not bound (AB_KV)" }, 500);
       try {
-        return json({ stats: await readStats(env), synopses: SYNOPSES, previews: PREVIEWS });
+        const all = await readStats(env);
+        let ev = [];
+        try {
+          const raw = await env.AB_KV.get("ab_events");
+          if (raw) ev = JSON.parse(raw);
+        } catch (e) {}
+        const q = url.searchParams;
+        const from = q.get("from") ? parseInt(q.get("from"), 10) || 0 : 0;
+        const to = q.get("to") ? parseInt(q.get("to"), 10) || 0 : 0;
+        const stats =
+          from || to ? aggregate(filterEvents(ev, from, to)) : all;
+        return json({
+          stats,
+          all,
+          synopses: SYNOPSES,
+          previews: PREVIEWS,
+          from,
+          to,
+          events: ev.length,
+        });
       } catch (e) {
         return json({ error: String((e && e.message) || e) }, 500);
       }

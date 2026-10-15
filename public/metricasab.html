@@ -39,6 +39,19 @@ input{padding:10px;border-radius:8px;border:1px solid #444;background:#0a0f24;co
 </div>
 <p><small id="totals"></small></p>
 <div class="card">
+<h3>📅 Período</h3>
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+<label><small>De</small><br><input type="date" id="f-from"></label>
+<label><small>Até</small><br><input type="date" id="f-to"></label>
+<button class="btn" id="f-apply">Filtrar</button>
+<button class="btn-gray btn" data-range="today">Hoje</button>
+<button class="btn-gray btn" data-range="7">7 dias</button>
+<button class="btn-gray btn" data-range="30">30 dias</button>
+<button class="btn-gray btn" data-range="all">Tudo</button>
+</div>
+<p><small id="period-note"></small></p>
+</div>
+<div class="card">
 <h3>🏆 9 combos (who converts most?)</h3>
 <table id="t-combos"><tr><th>Combo</th><th>Synopsis</th><th>Preview</th><th>Views</th><th>Clicks</th><th>CVR</th></tr></table>
 </div>
@@ -53,11 +66,27 @@ input{padding:10px;border-radius:8px;border:1px solid #444;background:#0a0f24;co
 <script>
 (function(){
 var pw = "";
+var F = {from: 0, to: 0};
 function cvr(c,v){ return v>0 ? (c/v*100) : 0; }
 function esc(t){ var d=document.createElement("div"); d.textContent=t; return d.innerHTML; }
+function dayStart(d){ d.setHours(0,0,0,0); return d.getTime(); }
+function dayEnd(d){ d.setHours(23,59,59,999); return d.getTime(); }
+function isoDate(ts){ var d=new Date(ts); return d.toISOString().slice(0,10); }
+function setRange(r){
+  var now = new Date();
+  if (r === "today") { F.from = dayStart(new Date()); F.to = dayEnd(new Date()); }
+  else if (r === "7" || r === "30") { var n = parseInt(r,10); var t = new Date(); F.to = dayEnd(new Date()); var s = new Date(); s.setDate(s.getDate()-(n-1)); F.from = dayStart(s); }
+  else { F.from = 0; F.to = 0; }
+  document.getElementById("f-from").value = F.from ? isoDate(F.from) : "";
+  document.getElementById("f-to").value = F.to ? isoDate(F.to) : "";
+  load();
+}
 function showErr(msg){ var e=document.getElementById("login-err"); e.textContent=msg; e.style.display="block"; document.getElementById("login").style.display="block"; document.getElementById("dash").style.display="none"; }
 function load(){
-  fetch("/api/stats?password=" + encodeURIComponent(pw), {cache:"no-store"})
+  var q = "/api/stats?password=" + encodeURIComponent(pw);
+  if (F.from) q += "&from=" + F.from;
+  if (F.to) q += "&to=" + F.to;
+  fetch(q, {cache:"no-store"})
     .then(function(r){ return r.json().then(function(j){ return {status:r.status, body:j}; }); })
     .then(function(res){
       if (res.status === 401) { showErr("Wrong password."); return; }
@@ -70,7 +99,12 @@ function load(){
       var byV={1:{views:0,clicks:0},2:{views:0,clicks:0},3:{views:0,clicks:0}};
       var tV=0,tC=0,best=null,bestR=-1;
       order.forEach(function(k){ var r=stats[k]; if(!r) return; tV+=r.views; tC+=r.clicks; byS[r.s].views+=r.views; byS[r.s].clicks+=r.clicks; byV[r.v].views+=r.views; byV[r.v].clicks+=r.clicks; var rate=cvr(r.clicks,r.views); if(r.views>0&&rate>bestR){bestR=rate;best=k;} });
-      document.getElementById("totals").textContent = "Total views: "+tV+" • Total clicks: "+tC+" • Overall CVR: "+cvr(tC,tV).toFixed(2)+"% • Rotation: global round-robin via /api/next. Click = checkout button.";
+      document.getElementById("totals").textContent = "Período: views " + tV + " • cliques " + tC + " • CVR " + cvr(tC,tV).toFixed(2) + "% • Rotação global round-robin. Clique = botão checkout.";
+      var at = res.body.all, aV = 0, aC = 0;
+      if (at) Object.keys(at).forEach(function(k){ aV += at[k].views; aC += at[k].clicks; });
+      document.getElementById("period-note").textContent =
+        (F.from || F.to ? "Filtrado de " + (F.from ? new Date(F.from).toLocaleDateString() : "…") + " até " + (F.to ? new Date(F.to).toLocaleDateString() : "…") + ". " : "Sem filtro (tudo). ") +
+        "Acumulado geral: " + aV + " views • " + aC + " cliques.";
       var html="";
       order.forEach(function(k){ var r=stats[k]; var rate=cvr(r.clicks,r.views); var b=(k===best)?' class="best"':""; html+="<tr"+b+"><td><b>"+k+"</b>"+(k===best?' <span class="badge">BEST</span>':"")+"</td><td>S"+r.s+" — "+esc((syn[r.s]||"").substr(0,38))+"</td><td>V"+r.v+"</td><td>"+r.views+"</td><td>"+r.clicks+"</td><td><b>"+rate.toFixed(2)+"%</b></td></tr>"; });
       document.getElementById("t-combos").innerHTML = "<tr><th>Combo</th><th>Synopsis</th><th>Preview</th><th>Views</th><th>Clicks</th><th>CVR</th></tr>"+html;
@@ -86,6 +120,15 @@ function load(){
 document.getElementById("login-btn").addEventListener("click", function(){ pw=document.getElementById("pw").value; load(); });
 document.getElementById("pw").addEventListener("keydown", function(e){ if(e.key==="Enter"){ pw=e.target.value; load(); } });
 document.getElementById("refresh").addEventListener("click", load);
+document.getElementById("f-apply").addEventListener("click", function(){
+  var f = document.getElementById("f-from").value, t = document.getElementById("f-to").value;
+  F.from = f ? dayStart(new Date(f + "T00:00:00")) : 0;
+  F.to = t ? dayEnd(new Date(t + "T00:00:00")) : 0;
+  load();
+});
+Array.prototype.forEach.call(document.querySelectorAll("[data-range]"), function(b){
+  b.addEventListener("click", function(){ setRange(b.getAttribute("data-range")); });
+});
 })();
 </script>
 </body>
