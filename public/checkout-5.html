@@ -80,10 +80,6 @@ footer{text-align:center;color:var(--mute);font-size:12px;padding:18px}
 <button type="button" class="bump-btn" id="bump-btn">+ Add</button>
 </div>
 <div class="step">3 · Payment</div>
-<div class="tabs">
-<div class="tab active" data-m="card">💳 Card $5.00</div>
-<div class="tab" data-m="crypto">₿ Crypto $5.00</div>
-</div>
 <div class="pane" id="pane-card">
 <input id="c-num" placeholder="Card number" inputmode="numeric" maxlength="19" autocomplete="cc-number">
 <div class="grid2">
@@ -94,7 +90,6 @@ footer{text-align:center;color:var(--mute);font-size:12px;padding:18px}
 <input id="c-cpf" placeholder="CPF (card holder)" inputmode="numeric" maxlength="14">
 <div style="font-size:12px;margin-top:2px">Charged as <b id="card-brl" style="color:var(--ink)">R$ 27,90</b> · Instant approval</div>
 </div>
-<div class="pane" id="pane-crypto" style="display:none"><b style="color:var(--ink)">Pay with crypto</b><br>BTC, ETH, USDT and 300+ coins. Charged <b id="crypto-usd">$5.00</b>.</div>
 <div class="total-row"><span class="t-label">Total to pay</span><span class="t-value"><span id="t-usd">$5.00</span><small id="t-brl">R$ 27,90 on card</small></span></div>
 <button class="pay-btn" id="pay">Complete payment →</button>
 <p class="err" id="err"></p>
@@ -136,24 +131,13 @@ function totals(){
   document.getElementById("s-usd").textContent=fmt$(us);
   document.getElementById("s-brl").textContent=fmtR(br)+" on card";
   document.getElementById("card-brl").textContent=fmtR(br);
-  document.getElementById("crypto-usd").textContent=fmt$(us);
   document.getElementById("bump-line").style.display=bumpOn?"block":"none";
   document.getElementById("bump-btn").textContent=bumpOn?"✓ Added":"+ Add";
   document.getElementById("bump").classList.toggle("on",bumpOn);
   document.getElementById("bump").classList.toggle("off",!bumpOn);
-  document.getElementById("sum-method").textContent=(method==="card"?"card":"crypto");
-  var tabs=document.querySelectorAll(".tab");
-  tabs[0].textContent="💳 Card "+fmt$(us); tabs[1].textContent="₿ Crypto "+fmt$(us);
+  document.getElementById("sum-method").textContent="credit card";
 }
 document.getElementById("bump").addEventListener("click",function(){ bumpOn=!bumpOn; totals(); });
-var tabs=document.querySelectorAll(".tab");
-tabs.forEach(function(t){ t.addEventListener("click",function(){
-  tabs.forEach(function(x){x.classList.remove("active")}); t.classList.add("active");
-  method=t.dataset.m;
-  document.getElementById("pane-card").style.display=method==="card"?"block":"none";
-  document.getElementById("pane-crypto").style.display=method==="crypto"?"block":"none";
-  totals();
-});});
 document.getElementById("c-num").addEventListener("input",function(e){
   var d=digits(e.target.value).slice(0,16); e.target.value=d.replace(/(\d{4})(?=\d)/g,"$1 ");
 });
@@ -177,14 +161,6 @@ function go(btn){
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ fail("Please enter a valid email.",btn,btn.textContent); return; }
   var old=btn.textContent; btn.disabled=true; btn.textContent="Processing…";
   var bumps=bumpOn?["premium_upgrade"]:[];
-  if(method==="crypto"){
-    fetch("/api/checkout",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
-      product:"basic",provider:"nowpayments",name:name,email:email,bumps:bumps,utms:UTMS,ab:AB})})
-      .then(function(r){return r.json();})
-      .then(function(j){ if(j.invoice_url){location.href=j.invoice_url;return;} fail("Payment unavailable right now, please try again in a minute.",btn,old); })
-      .catch(function(){ fail("Connection error, try again.",btn,old); });
-    return;
-  }
   var num=digits(document.getElementById("c-num").value);
   var exp=document.getElementById("c-exp").value.split("/");
   var cvv=digits(document.getElementById("c-cvv").value);
