@@ -2,79 +2,170 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Checkout — Full Season Access $5.00</title>
-<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Checkout — Aurora Vitale Full Season $5.00</title>
+<meta name="description" content="Pay securely. Instant access by email.">
+<meta name="robots" content="noindex,nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+:root{--primary:#1AB854;--bg:#0B0F15;--soft:#0F141C;--card:#131820;--ink:#F1F5F9;--text:#E5E7EB;--mute:#94A3B8;--line:#232A35}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Inter',sans-serif;background:#080d20;color:#f3f2ff;min-height:100vh;display:flex;justify-content:center;padding:28px 16px}
-.card{width:100%;max-width:440px;background:#101a3b;border:1px solid rgba(117,71,216,.6);border-radius:18px;padding:26px 22px;height:fit-content}
-.badge{display:inline-block;background:#f2cf78;color:#221a05;font-family:'Oswald';font-size:12px;font-weight:700;padding:4px 12px;border-radius:999px;margin-bottom:10px}
-h1{font-family:'Oswald';font-size:22px;margin-bottom:4px}
-.price{font-size:38px;font-weight:700;color:#f2cf78;margin:10px 0 2px}
-.per{color:#b4bddc;font-size:13px;margin-bottom:14px}
-ul{list-style:none;font-size:14px;color:#d6dbf2;margin-bottom:18px}
-ul li{margin:7px 0}
-label{display:block;font-size:13px;color:#b4bddc;margin:12px 0 5px}
-input{width:100%;padding:13px;border-radius:10px;border:1px solid #3a4570;background:#0a0f24;color:#fff;font-size:15px}
-input:focus{outline:none;border-color:#8b5cf6}
-.notice{background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.5);border-radius:10px;padding:11px 13px;font-size:13px;line-height:1.55;color:#d6dbf2;margin:16px 0}
-.btn{width:100%;padding:16px;border:0;border-radius:12px;background:linear-gradient(180deg,#22c55e,#15803d);color:#fff;font-weight:700;font-size:17px;cursor:pointer;margin-top:4px}
-.btn:disabled{opacity:.6;cursor:wait}
-.err{display:none;background:rgba(255,71,71,.12);border:1px solid rgba(255,71,71,.5);color:#ffb4b4;border-radius:10px;padding:10px 12px;font-size:13px;margin-top:12px}
-.secure{text-align:center;color:#8994b8;font-size:12px;margin-top:14px}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased}
+.topbar{background:var(--primary);color:#fff;text-align:center;padding:9px 12px;font-size:13.5px;font-weight:600}
+.topbar b{font-variant-numeric:tabular-nums;background:rgba(0,0,0,.25);padding:2px 8px;border-radius:6px;margin-left:6px}
+.banner{display:block;width:100%;max-height:220px;object-fit:cover}
+.wrap{max-width:960px;margin:0 auto;padding:20px 14px 40px;display:grid;grid-template-columns:1fr;gap:18px}
+@media(min-width:860px){.wrap{grid-template-columns:1.2fr .8fr;align-items:start}}
+.left input,.left select{width:100%;background:var(--soft);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:13px;margin-bottom:10px;font-size:15px}
+.left input:focus{outline:none;border-color:var(--primary)}
+.step{font-size:13px;font-weight:700;color:var(--ink);margin:20px 0 12px;letter-spacing:.02em}
+.step:first-child{margin-top:0}
+.bump{background:#FFFBEB;border:1.5px solid var(--primary);border-radius:12px;padding:12px;display:flex;gap:12px;align-items:center;cursor:pointer;color:#111418}
+.bump.off{opacity:.75}
+.bump img{width:56px;height:56px;border-radius:8px;object-fit:cover;flex-shrink:0}
+.bump-info{flex:1}
+.bump-title{font-weight:700;font-size:13.5px}
+.bump-price{font-weight:700;font-size:14px;margin-top:2px}
+.bump small{color:#6B7280;font-size:12px}
+.bump-btn{border:1.5px solid var(--primary);color:var(--primary);background:transparent;border-radius:8px;padding:8px 12px;font-weight:700;font-size:13px;white-space:nowrap;cursor:pointer}
+.bump.on .bump-btn{background:var(--primary);color:#fff}
+.tabs{display:flex;background:var(--soft);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:10px}
+.tab{flex:1;text-align:center;padding:12px;font-weight:700;font-size:14px;cursor:pointer;color:var(--mute)}
+.tab.active{background:var(--card);color:var(--ink);box-shadow:inset 0 -2px 0 var(--primary)}
+.pane{background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:13px;font-size:13.5px;color:var(--mute);line-height:1.55;margin-bottom:6px}
+.total-row{display:flex;justify-content:space-between;align-items:center;background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:13px 14px;margin:14px 0}
+.total-row .t-label{font-size:13px;color:var(--mute)}
+.total-row .t-value{font-size:21px;font-weight:800;color:var(--ink)}
+.total-row .t-value small{display:block;font-size:11px;font-weight:400;color:var(--mute)}
+.pay-btn{width:100%;background:var(--primary);color:#fff;border:0;border-radius:12px;padding:16px;font-size:17px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.pay-btn:disabled{opacity:.6;cursor:wait}
+.err{display:none;background:rgba(255,71,71,.1);border:1px solid rgba(255,71,71,.5);color:#ffb4b4;border-radius:10px;padding:10px 12px;font-size:13px;margin-top:10px}
+.notice{font-size:12.5px;color:var(--mute);line-height:1.6;margin-top:12px}
+.notice b{color:var(--text)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+.sum-head{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:12px}
+.sum-item{display:flex;gap:12px;align-items:center}
+.sum-item img{width:58px;height:58px;border-radius:8px;object-fit:cover}
+.sum-name{font-size:13.5px;font-weight:600;color:var(--ink)}
+.sum-price{font-size:14px;font-weight:700}
+.sum-method{font-size:12px;color:var(--mute)}
+#bump-line{display:none}
+.divider{height:1px;background:var(--line);margin:14px 0}
+.sum-total{display:flex;justify-content:space-between;font-weight:800;color:var(--ink);font-size:17px;margin-bottom:6px}
+.sum-total small{display:block;font-size:11px;font-weight:400;color:var(--mute);text-align:right}
+.guarantee{display:flex;gap:8px;font-size:12.5px;color:var(--mute);margin-top:12px;line-height:1.5}
+footer{text-align:center;color:var(--mute);font-size:12px;padding:18px}
 </style>
 </head>
 <body>
-<div class="card">
-<span class="badge">CHECKOUT • USD</span>
-<h1>Aurora Vitale — Full Season</h1>
-<p class="price">$5.00</p>
-<p class="per">One-time payment • No subscription • <span style="white-space:nowrap">charged as R$ 27,90</span></p>
-<ul>
-<li>✅ All episodes, full season</li>
-<li>✅ Instant + lifetime access</li>
-<li>✅ Watch on any device</li>
-</ul>
-<label for="name">Full name</label>
-<input id="name" type="text" placeholder="Jane Smith" autocomplete="name">
-<label for="email">Email (access is sent here)</label>
-<input id="email" type="email" placeholder="you@email.com" autocomplete="email">
-<div class="notice">📧 <b>Your access link is sent to this email immediately after payment is confirmed.</b> Double-check the spelling.</div>
-<button class="btn" id="pay-mp">Pay R$ 27,90 with card →</button>
-<button class="btn" id="pay-crypto" style="background:linear-gradient(180deg,#8b5cf6,#6d28d9);margin-top:10px">or pay $5.00 with crypto →</button>
-<p class="err" id="err"></p>
-<p class="secure">🔒 Secure payment • Mercado Pago (card) or crypto</p>
+<div class="topbar">⚡ Special offer ends in: <b id="cd">15:00</b></div>
+<img class="banner" src="assets/cover.jpg" alt="Aurora Vitale">
+<div class="wrap">
+<section class="left">
+<div class="step">1 · Your details</div>
+<input id="f-name" placeholder="Full name" autocomplete="name">
+<input id="f-email" type="email" placeholder="Your best email" autocomplete="email">
+<input id="f-phone" placeholder="Phone / WhatsApp (optional)" autocomplete="tel" inputmode="tel">
+<div class="step">2 · Add to your order</div>
+<div class="bump off" id="bump">
+<img src="assets/cover.jpg" alt="">
+<div class="bump-info">
+<div class="bump-title">⭐ PREMIUM UPGRADE — full catalog</div>
+<div class="bump-price">+$5.00 <small>(R$ 27,00)</small></div>
+<small>Unlock all series + daily releases</small>
 </div>
+<button type="button" class="bump-btn" id="bump-btn">+ Add</button>
+</div>
+<div class="step">3 · Payment method</div>
+<div class="tabs">
+<div class="tab active" data-m="card">💳 Card</div>
+<div class="tab" data-m="crypto">₿ Crypto</div>
+</div>
+<div class="pane" id="pane-card"><b style="color:var(--ink)">Pay with card</b><br>Secure Mercado Pago checkout. Instant approval and immediate release. Charged as <b id="card-brl">R$ 27,90</b>.</div>
+<div class="pane" id="pane-crypto" style="display:none"><b style="color:var(--ink)">Pay with crypto</b><br>BTC, ETH, USDT and 300+ coins via NOWPayments. Charged <b id="crypto-usd">$5.00</b>, payouts in stablecoin.</div>
+<div class="total-row"><span class="t-label">Total to pay</span><span class="t-value"><span id="t-usd">$5.00</span><small id="t-brl">R$ 27,90 on card</small></span></div>
+<button class="pay-btn" id="pay">Complete payment →</button>
+<p class="err" id="err"></p>
+<p class="notice">📧 <b>Your access link is sent to this email immediately after payment is confirmed.</b> Double-check the spelling.</p>
+</section>
+<aside>
+<div class="card">
+<div class="sum-head">Order summary</div>
+<div class="sum-item">
+<img src="assets/cover.jpg" alt="">
+<div><div class="sum-name">Aurora Vitale — Full Season</div>
+<div class="sum-price">$5.00 <span class="sum-method">one-time</span></div>
+<div class="sum-method" id="bump-line">+ Premium upgrade $5.00</div>
+<div class="sum-method" id="sum-method">on card</div></div>
+</div>
+<div class="divider"></div>
+<div class="sum-total"><span>Total</span><span><span id="s-usd">$5.00</span><small id="s-brl">R$ 27,90 on card</small></span></div>
+<button class="pay-btn" id="pay2">Complete payment →</button>
+<div class="guarantee">🛡️ 7-day guarantee. No questions, no hassle.</div>
+</div>
+</aside>
+</div>
+<footer>Secure checkout · Instant delivery by email</footer>
 <script>
 (function(){
+var BASE_US={usd:5,brl:27.9}, BUMP={usd:5,brl:27.0};
+var bumpOn=false, method="card";
 function qs(n){ try { return new URLSearchParams(location.search).get(n) || ""; } catch(e){ return ""; } }
-var UTMS = {source: qs("utm_source"), medium: qs("utm_medium"), campaign: qs("utm_campaign"), term: qs("utm_term"), content: qs("utm_content")};
-var AB = qs("ab");
-function checkout(provider, btn, label){
-  var name = document.getElementById("name").value.trim();
-  var email = document.getElementById("email").value.trim().toLowerCase();
-  var err = document.getElementById("err");
-  err.style.display = "none";
-  if (name.length < 2) { err.textContent = "Please enter your name."; err.style.display = "block"; return; }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { err.textContent = "Please enter a valid email."; err.style.display = "block"; return; }
-  btn.disabled = true; var old = btn.textContent; btn.textContent = "Processing…";
-  fetch("/api/checkout", {method: "POST", headers: {"content-type": "application/json"},
-    body: JSON.stringify({product: "basic", provider: provider, name: name, email: email, utms: UTMS, ab: AB})})
-    .then(function(r){ return r.json().then(function(j){ return {s: r.status, j: j}; }); })
-    .then(function(res){
-      var url = res.j.init_point || res.j.invoice_url;
-      if (url) { location.href = url; return; }
-      err.textContent = "Payment unavailable right now, please try again in a minute.";
-      err.style.display = "block"; btn.disabled = false; btn.textContent = old;
-    })
-    .catch(function(){ err.textContent = "Connection error, try again."; err.style.display = "block"; btn.disabled = false; btn.textContent = old; });
+var UTMS={source:qs("utm_source"),medium:qs("utm_medium"),campaign:qs("utm_campaign"),term:qs("utm_term"),content:qs("utm_content")};
+var AB=qs("ab");
+function fmt$(v){ return "$"+v.toFixed(2); }
+function fmtR(v){ return "R$ "+v.toFixed(2).replace(".",","); }
+function totals(){
+  var us=BASE_US.usd+(bumpOn?BUMP.usd:0), br=BASE_US.brl+(bumpOn?BUMP.brl:0);
+  document.getElementById("t-usd").textContent=fmt$(us);
+  document.getElementById("t-brl").textContent=fmtR(br)+" on card";
+  document.getElementById("s-usd").textContent=fmt$(us);
+  document.getElementById("s-brl").textContent=fmtR(br)+" on card";
+  document.getElementById("card-brl").textContent=fmtR(br);
+  document.getElementById("crypto-usd").textContent=fmt$(us);
+  document.getElementById("bump-line").style.display=bumpOn?"block":"none";
+  document.getElementById("bump-btn").textContent=bumpOn?"✓ Added":"+ Add";
+  document.getElementById("bump").classList.toggle("on",bumpOn);
+  document.getElementById("bump").classList.toggle("off",!bumpOn);
+  document.getElementById("sum-method").textContent=(method==="card"?"on card":"with crypto");
 }
-document.getElementById("pay-mp").addEventListener("click", function(){ checkout("mercadopago", this, ""); });
-document.getElementById("pay-crypto").addEventListener("click", function(){ checkout("nowpayments", this, ""); });
+document.getElementById("bump").addEventListener("click",function(){ bumpOn=!bumpOn; totals(); });
+var tabs=document.querySelectorAll(".tab");
+tabs.forEach(function(t){ t.addEventListener("click",function(){
+  tabs.forEach(function(x){x.classList.remove("active")}); t.classList.add("active");
+  method=t.dataset.m;
+  document.getElementById("pane-card").style.display=method==="card"?"block":"none";
+  document.getElementById("pane-crypto").style.display=method==="crypto"?"block":"none";
+  totals();
+});});
+function go(btn){
+  var name=document.getElementById("f-name").value.trim();
+  var email=document.getElementById("f-email").value.trim().toLowerCase();
+  var phone=document.getElementById("f-phone").value.trim();
+  var err=document.getElementById("err"); err.style.display="none";
+  if(name.length<2){ err.textContent="Please enter your name."; err.style.display="block"; return; }
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ err.textContent="Please enter a valid email."; err.style.display="block"; return; }
+  var old=btn.textContent; btn.disabled=true; btn.textContent="Processing…";
+  fetch("/api/checkout",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
+    product:"basic", provider:method==="card"?"mercadopago":"nowpayments",
+    name:name, email:email, phone:phone,
+    bumps:bumpOn?["premium_upgrade"]:[], utms:UTMS, ab:AB})})
+    .then(function(r){return r.json().then(function(j){return{j:j};});})
+    .then(function(res){
+      var u=res.j.init_point||res.j.invoice_url;
+      if(u){ location.href=u; return; }
+      err.textContent="Payment unavailable right now, please try again in a minute.";
+      err.style.display="block"; btn.disabled=false; btn.textContent=old;
+    })
+    .catch(function(){ err.textContent="Connection error, try again."; err.style.display="block"; btn.disabled=false; btn.textContent=old; });
+}
+document.getElementById("pay").addEventListener("click",function(){go(this);});
+document.getElementById("pay2").addEventListener("click",function(){go(this);});
+totals();
+var total=15*60,cd=document.getElementById("cd");
+setInterval(function(){var m=Math.floor(total/60),s=total%60;cd.textContent=(m<10?"0":"")+m+":"+(s<10?"0":"")+s;total--;if(total<0)total=15*60;},1000);
 })();
 </script>
 </body>

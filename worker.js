@@ -88,6 +88,17 @@ const PRODUCTS = {
   },
 };
 
+// Order bump (only offered on the $5 page): upgrades access to premium.
+const BUMPS = {
+  premium_upgrade: {
+    name: "PREMIUM UPGRADE — full catalog",
+    desc: "Unlock the full catalog + daily releases",
+    usd: 5,
+    brl: 27.0,
+  },
+};
+
+const accessOf = (sale) => sale.access || sale.product;
 // Configure your content links here (shown on /acesso.html after payment)
 const ACCESS_LINKS = {
   basic: ["https://www.tiktok.com/@dramastop7"],
@@ -152,7 +163,7 @@ async function sendAccessEmail(env, sale) {
   // Optional: set RESEND_API_KEY + RESEND_FROM in Worker secrets/vars.
   if (!env.RESEND_API_KEY) return { sent: false, reason: "no RESEND_API_KEY" };
   try {
-    const links = (ACCESS_LINKS[sale.product] || []).map((u) => `<li><a href="${u}">${u}</a></li>`).join("");
+    const links = (ACCESS_LINKS[accessOf(sale)] || []).map((u) => `<li><a href="${u}">${u}</a></li>`).join("");
     const r = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -259,22 +270,33 @@ export default {
         const product = body.product === "premium" ? "premium" : "basic";
         const name = String(body.name || "").trim().slice(0, 80);
         const email = String(body.email || "").trim().toLowerCase().slice(0, 120);
+        const phone = String(body.phone || "").replace(/\D/g, "").slice(0, 20);
         if (name.length < 2) return json({ error: "name required" }, 400);
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
           return json({ error: "valid email required" }, 400);
         const u = body.utms && typeof body.utms === "object" ? body.utms : {};
         const want = body.provider === "nowpayments" ? "nowpayments" : body.provider === "mercadopago" ? "mercadopago" : "";
         const provider = want || (env.MP_ACCESS_TOKEN ? "mercadopago" : "nowpayments");
+        const reqBumps = Array.isArray(body.bumps) ? body.bumps.filter((b) => BUMPS[b]) : [];
+        // bump only valid on basic page; premium already includes everything
+        const bumps = product === "basic" ? reqBumps : [];
+        const access = bumps.includes("premium_upgrade") ? "premium" : product;
+        const usdTotal = PRODUCTS[product].amount + bumps.reduce((t, b) => t + BUMPS[b].usd, 0);
+        const brlTotal = Math.round((PRODUCTS[product].mp_amount + bumps.reduce((t, b) => t + BUMPS[b].brl, 0)) * 100) / 100;
         const sale = {
           id: orderId(),
           ts: Date.now(),
           name,
           email,
+          phone,
           product,
           productName: PRODUCTS[product].name,
-          amount: provider === "mercadopago" ? PRODUCTS[product].mp_amount : PRODUCTS[product].amount,
+          amount: provider === "mercadopago" ? brlTotal : usdTotal,
           currency: provider === "mercadopago" ? PRODUCTS[product].mp_currency : PRODUCTS[product].currency,
+          usd_ref: usdTotal,
           provider,
+          bumps,
+          access,
           status: "pending",
           utms: {
             source: String(u.source || "").slice(0, 80),
@@ -294,19 +316,29 @@ export default {
         if (provider === "mercadopago") {
           if (!env.MP_ACCESS_TOKEN)
             return json({ error: "payments not configured (MP_ACCESS_TOKEN)", order_id: sale.id }, 500);
+          const mpItems = [
+            {
+              title: PRODUCTS[product].name,
+              description: PRODUCTS[product].desc,
+              quantity: 1,
+              currency_id: PRODUCTS[product].mp_currency,
+              unit_price: PRODUCTS[product].mp_amount,
+            },
+          ];
+          for (const b of bumps) {
+            mpItems.push({
+              title: BUMPS[b].name,
+              description: BUMPS[b].desc,
+              quantity: 1,
+              currency_id: PRODUCTS[product].mp_currency,
+              unit_price: BUMPS[b].brl,
+            });
+          }
           const pref = await fetch("https://api.mercadopago.com/checkout/preferences", {
             method: "POST",
             headers: { Authorization: "Bearer " + env.MP_ACCESS_TOKEN, "content-type": "application/json" },
             body: JSON.stringify({
-              items: [
-                {
-                  title: PRODUCTS[product].name,
-                  description: PRODUCTS[product].desc,
-                  quantity: 1,
-                  currency_id: PRODUCTS[product].mp_currency,
-                  unit_price: PRODUCTS[product].mp_amount,
-                },
-              ],
+              items: mpItems,
               payer: { name, email },
               back_urls: {
                 success: origin + "/acesso.html?order=" + encodeURIComponent(sale.id),
@@ -346,7 +378,7 @@ export default {
           method: "POST",
           headers: { "x-api-key": env.NOWPAYMENTS_API_KEY, "content-type": "application/json" },
           body: JSON.stringify({
-            price_amount: PRODUCTS[product].amount,
+            price_amount: usdTotal,
             price_currency: PRODUCTS[product].currency.toLowerCase(),
             order_id: sale.id,
             order_description: PRODUCTS[product].desc,
@@ -488,12 +520,14 @@ export default {
         );
         if (!found.length) return json({ error: "no paid order found" }, 404);
         const latest = found[found.length - 1];
+        const lvl = accessOf(latest);
         return json({
           ok: true,
           name: latest.name,
           product: latest.product,
           productName: latest.productName,
-          links: ACCESS_LINKS[latest.product] || [],
+          access: lvl,
+          links: ACCESS_LINKS[lvl] || [],
         });
       } catch (e) {
         return json({ error: String((e && e.message) || e) }, 500);
