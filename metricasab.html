@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AB Metrics — 3x3</title>
+<style>
+body{font-family:Arial;background:#080d20;color:#e8ebff;margin:0;padding:20px}
+.wrap{max-width:1000px;margin:0 auto}
+.card{background:#101a3b;border:1px solid rgba(143,157,255,.3);border-radius:14px;padding:18px;margin-bottom:18px}
+h2{margin:0 0 12px;font-size:20px} h3{margin:18px 0 8px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:10px 8px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left}
+th{color:#b4bddc;font-size:12px;text-transform:uppercase}
+tr.best{background:rgba(242,207,120,.12)}
+.badge{display:inline-block;background:#f2cf78;color:#221a05;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;margin-left:8px}
+.top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+button,.btn{padding:10px 16px;border-radius:8px;border:0;background:#7547d8;color:#fff;font-weight:700;cursor:pointer;text-decoration:none;font-size:13px}
+.btn-gray{background:#2a3358}
+small{color:#8994b8}
+input{padding:10px;border-radius:8px;border:1px solid #444;background:#0a0f24;color:#fff;width:220px}
+.err{color:#ff7b7b}
+#login{background:#101a3b;padding:28px;border-radius:14px;border:1px solid #333;max-width:340px;margin:60px auto;text-align:center}
+</style>
+</head>
+<body>
+<div id="login">
+<h3>AB Metrics Login</h3>
+<p class="err" id="login-err" style="display:none">Wrong password.</p>
+<input type="password" id="pw" placeholder="Password" autofocus>
+<p><button id="login-btn">Enter</button></p>
+<p><small>Works on Cloudflare Pages via Functions + KV.<br>PHP version: use metricasab.php on PHP hosting.</small></p>
+</div>
+
+<div class="wrap" id="dash" style="display:none">
+<div class="top">
+<h2>📊 AB Test — 3 synopses × 3 previews = 9 combos</h2>
+<div><button class="btn-gray btn" id="refresh">↻ Refresh</button></div>
+</div>
+<p><small id="totals"></small></p>
+<div class="card">
+<h3>🏆 9 combos (who converts most?)</h3>
+<table id="t-combos"><tr><th>Combo</th><th>Synopsis</th><th>Preview</th><th>Views</th><th>Clicks</th><th>CVR</th></tr></table>
+</div>
+<div class="card">
+<h3>📝 By SYNOPSIS (which of the 3 texts converts most?)</h3>
+<table id="t-syn"><tr><th>Synopsis</th><th>Views</th><th>Clicks</th><th>CVR</th></tr></table>
+<h3>🎬 By PREVIEW (which of the 3 videos converts most?)</h3>
+<table id="t-prev"><tr><th>Preview</th><th>File</th><th>Views</th><th>Clicks</th><th>CVR</th></tr></table>
+</div>
+</div>
+
+<script>
+(function(){
+var pw = "";
+function cvr(c,v){ return v>0 ? (c/v*100) : 0; }
+function esc(t){ var d=document.createElement("div"); d.textContent=t; return d.innerHTML; }
+function load(){
+  fetch("/api/stats?password=" + encodeURIComponent(pw), {cache:"no-store"})
+    .then(function(r){ return r.json().then(function(j){ return {status:r.status, body:j}; }); })
+    .then(function(res){
+      if (res.status !== 200) { document.getElementById("login-err").style.display="block"; document.getElementById("login").style.display="block"; document.getElementById("dash").style.display="none"; return; }
+      var stats=res.body.stats, syn=res.body.synopses, prev=res.body.previews;
+      document.getElementById("login").style.display="none";
+      document.getElementById("dash").style.display="block";
+      var order=["s1v1","s1v2","s1v3","s2v1","s2v2","s2v3","s3v1","s3v2","s3v3"];
+      var byS={1:{views:0,clicks:0},2:{views:0,clicks:0},3:{views:0,clicks:0}};
+      var byV={1:{views:0,clicks:0},2:{views:0,clicks:0},3:{views:0,clicks:0}};
+      var tV=0,tC=0,best=null,bestR=-1;
+      order.forEach(function(k){ var r=stats[k]; if(!r) return; tV+=r.views; tC+=r.clicks; byS[r.s].views+=r.views; byS[r.s].clicks+=r.clicks; byV[r.v].views+=r.views; byV[r.v].clicks+=r.clicks; var rate=cvr(r.clicks,r.views); if(r.views>0&&rate>bestR){bestR=rate;best=k;} });
+      document.getElementById("totals").textContent = "Total views: "+tV+" • Total clicks: "+tC+" • Overall CVR: "+cvr(tC,tV).toFixed(2)+"% • Rotation: global round-robin via /api/next. Click = checkout button.";
+      var html="";
+      order.forEach(function(k){ var r=stats[k]; var rate=cvr(r.clicks,r.views); var b=(k===best)?' class="best"':""; html+="<tr"+b+"><td><b>"+k+"</b>"+(k===best?' <span class="badge">BEST</span>':"")+"</td><td>S"+r.s+" — "+esc((syn[r.s]||"").substr(0,38))+"</td><td>V"+r.v+"</td><td>"+r.views+"</td><td>"+r.clicks+"</td><td><b>"+rate.toFixed(2)+"%</b></td></tr>"; });
+      document.getElementById("t-combos").innerHTML = "<tr><th>Combo</th><th>Synopsis</th><th>Preview</th><th>Views</th><th>Clicks</th><th>CVR</th></tr>"+html;
+      var bestS=0,bestSR=-1; [1,2,3].forEach(function(id){ var a=byS[id],r=cvr(a.clicks,a.views); if(a.views>0&&r>bestSR){bestSR=r;bestS=id;} });
+      var hs=""; [1,2,3].forEach(function(id){ var a=byS[id]; hs+="<tr"+(id===bestS&&a.views>0?' class="best"':"")+"><td><b>S"+id+"</b> — "+esc(syn[id]||"")+(id===bestS&&a.views>0?' <span class="badge">BEST</span>':"")+"</td><td>"+a.views+"</td><td>"+a.clicks+"</td><td><b>"+cvr(a.clicks,a.views).toFixed(2)+"%</b></td></tr>"; });
+      document.getElementById("t-syn").innerHTML = "<tr><th>Synopsis</th><th>Views</th><th>Clicks</th><th>CVR</th></tr>"+hs;
+      var bestV=0,bestVR=-1; [1,2,3].forEach(function(id){ var a=byV[id],r=cvr(a.clicks,a.views); if(a.views>0&&r>bestVR){bestVR=r;bestV=id;} });
+      var hv=""; [1,2,3].forEach(function(id){ var a=byV[id]; hv+="<tr"+(id===bestV&&a.views>0?' class="best"':"")+"><td><b>V"+id+"</b>"+(id===bestV&&a.views>0?' <span class="badge">BEST</span>':"")+"</td><td><small>"+esc(prev[id]||"")+"</small></td><td>"+a.views+"</td><td>"+a.clicks+"</td><td><b>"+cvr(a.clicks,a.views).toFixed(2)+"%</b></td></tr>"; });
+      document.getElementById("t-prev").innerHTML = "<tr><th>Preview</th><th>File</th><th>Views</th><th>Clicks</th><th>CVR</th></tr>"+hv;
+    })
+    .catch(function(){ document.getElementById("login-err").textContent = "API error — check Functions + KV binding."; document.getElementById("login-err").style.display="block"; });
+}
+document.getElementById("login-btn").addEventListener("click", function(){ pw=document.getElementById("pw").value; load(); });
+document.getElementById("pw").addEventListener("keydown", function(e){ if(e.key==="Enter"){ pw=e.target.value; load(); } });
+document.getElementById("refresh").addEventListener("click", load);
+})();
+</script>
+</body>
+</html>

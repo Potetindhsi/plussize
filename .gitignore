@@ -1,0 +1,13 @@
+# Backups e originais antigos (436 KB) — não vão para o Pages
+backup-original-pt.html
+index-local.html
+
+# Versão PHP (hospedagem cPanel) — Pages é estático, não executa
+*.php
+
+# Dados locais e docs internos
+data/
+.htaccess
+LEIA-ME.txt
+COMO-USAR-AB.txt
+CLOUDFLARE-PAGES-SETUP.txt
