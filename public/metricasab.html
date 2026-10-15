@@ -26,10 +26,10 @@ input{padding:10px;border-radius:8px;border:1px solid #444;background:#0a0f24;co
 <body>
 <div id="login">
 <h3>AB Metrics Login</h3>
-<p class="err" id="login-err" style="display:none">Wrong password.</p>
+<p class="err" id="login-err" style="display:none"></p>
 <input type="password" id="pw" placeholder="Password" autofocus>
 <p><button id="login-btn">Enter</button></p>
-<p><small>Works on Cloudflare Pages via Functions + KV.<br>PHP version: use metricasab.php on PHP hosting.</small></p>
+<p><small>Runs on the Worker + KV backend.<br>“Wrong password” = senha errada. “API error” = falta binda o KV (AB_KV) e dar Redeploy.</small></p>
 </div>
 
 <div class="wrap" id="dash" style="display:none">
@@ -55,11 +55,13 @@ input{padding:10px;border-radius:8px;border:1px solid #444;background:#0a0f24;co
 var pw = "";
 function cvr(c,v){ return v>0 ? (c/v*100) : 0; }
 function esc(t){ var d=document.createElement("div"); d.textContent=t; return d.innerHTML; }
+function showErr(msg){ var e=document.getElementById("login-err"); e.textContent=msg; e.style.display="block"; document.getElementById("login").style.display="block"; document.getElementById("dash").style.display="none"; }
 function load(){
   fetch("/api/stats?password=" + encodeURIComponent(pw), {cache:"no-store"})
     .then(function(r){ return r.json().then(function(j){ return {status:r.status, body:j}; }); })
     .then(function(res){
-      if (res.status !== 200) { document.getElementById("login-err").style.display="block"; document.getElementById("login").style.display="block"; document.getElementById("dash").style.display="none"; return; }
+      if (res.status === 401) { showErr("Wrong password."); return; }
+      if (res.status !== 200) { showErr("API error: " + ((res.body && res.body.error) || ("HTTP " + res.status)) + " — binda o KV (AB_KV) e dá Redeploy."); return; }
       var stats=res.body.stats, syn=res.body.synopses, prev=res.body.previews;
       document.getElementById("login").style.display="none";
       document.getElementById("dash").style.display="block";
@@ -79,7 +81,7 @@ function load(){
       var hv=""; [1,2,3].forEach(function(id){ var a=byV[id]; hv+="<tr"+(id===bestV&&a.views>0?' class="best"':"")+"><td><b>V"+id+"</b>"+(id===bestV&&a.views>0?' <span class="badge">BEST</span>':"")+"</td><td><small>"+esc(prev[id]||"")+"</small></td><td>"+a.views+"</td><td>"+a.clicks+"</td><td><b>"+cvr(a.clicks,a.views).toFixed(2)+"%</b></td></tr>"; });
       document.getElementById("t-prev").innerHTML = "<tr><th>Preview</th><th>File</th><th>Views</th><th>Clicks</th><th>CVR</th></tr>"+hv;
     })
-    .catch(function(){ document.getElementById("login-err").textContent = "API error — check Functions + KV binding."; document.getElementById("login-err").style.display="block"; });
+    .catch(function(){ showErr("API error — binda o KV (AB_KV) no Worker e dá Redeploy."); });
 }
 document.getElementById("login-btn").addEventListener("click", function(){ pw=document.getElementById("pw").value; load(); });
 document.getElementById("pw").addEventListener("keydown", function(e){ if(e.key==="Enter"){ pw=e.target.value; load(); } });
