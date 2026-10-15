@@ -1,0 +1,11 @@
+name = "plussizes"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+[assets]
+directory = "./public"
+not_found_handling = "none"
+
+# KV binding AB_KV -> namespace AB_METRICS is added via dashboard:
+# Worker plussizes > Settings > Bindings > Add > KV namespace (variable AB_KV).
+# (Intencionalmente fora do toml para não vazar o ID no git.)

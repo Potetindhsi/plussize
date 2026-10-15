@@ -2,6 +2,9 @@
 backup-original-pt.html
 index-local.html
 
+# Worker build tmp
+.wrangler/
+
 # Versão PHP (hospedagem cPanel) — Pages é estático, não executa
 *.php
 
