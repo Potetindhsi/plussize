@@ -311,6 +311,13 @@ export default {
           tx: "",
           email_status: "",
         };
+        // deferred:true -> only saves the pending order (transparent card flow charges after)
+        if (body.deferred === true) {
+          const all = await readSales(env);
+          all.push(sale);
+          await writeSales(env, all);
+          return json({ ok: true, order_id: sale.id, amount: sale.amount, currency: sale.currency });
+        }
         const origin = url.origin;
         // ---- Mercado Pago Checkout Pro (BRL settlement) ----
         if (provider === "mercadopago") {
@@ -402,6 +409,60 @@ export default {
         await writeSales(env, all);
         const payUrl = invJ.invoice_url || "https://nowpayments.io/payment/?iid=" + invJ.id;
         return json({ ok: true, order_id: sale.id, invoice_url: payUrl });
+      } catch (e) {
+        return json({ error: String((e && e.message) || e) }, 500);
+      }
+    }
+
+    // POST /api/pay/card {order_id, card_token, payment_method_id, installments, cpf}
+    // Transparent Mercado Pago charge (buyer stays on page). BRL settlement.
+    if (url.pathname === "/api/pay/card") {
+      if (request.method !== "POST") return json({ error: "method not allowed" }, 405);
+      if (!env.AB_KV) return json({ error: "KV not bound" }, 500);
+      if (!env.MP_ACCESS_TOKEN) return json({ error: "payments not configured" }, 500);
+      try {
+        const body = await request.json().catch(() => ({}));
+        const orderId = String(body.order_id || "");
+        const token = String(body.card_token || "");
+        const pmId = String(body.payment_method_id || "");
+        const cpf = String(body.cpf || "").replace(/\D/g, "").slice(0, 11);
+        const inst = Math.max(1, Math.min(12, parseInt(body.installments, 10) || 1));
+        if (!orderId || !token) return json({ error: "order/token required" }, 400);
+        if (cpf.length !== 11) return json({ error: "valid CPF required" }, 400);
+        const sales = await readSales(env);
+        const s = sales.find((x) => x.id === orderId);
+        if (!s) return json({ error: "order not found" }, 404);
+        if (s.status === "paid") return json({ ok: true, status: "approved", order_id: s.id });
+        const pr = await fetch("https://api.mercadopago.com/v1/payments", {
+          method: "POST",
+          headers: { Authorization: "Bearer " + env.MP_ACCESS_TOKEN, "content-type": "application/json" },
+          body: JSON.stringify({
+            transaction_amount: Number(s.amount),
+            token,
+            description: s.productName + (s.bumps && s.bumps.length ? " + " + s.bumps.join(",") : ""),
+            installments: inst,
+            ...(pmId ? { payment_method_id: pmId } : {}),
+            payer: { email: s.email, identification: { type: "CPF", number: cpf } },
+            external_reference: s.id,
+            notification_url: new URL(request.url).origin + "/api/webhook/mercadopago",
+            metadata: { ab: (s.utms || {}).ab || "", utm_source: (s.utms || {}).source || "" },
+          }),
+        });
+        const pay = await pr.json().catch(() => ({}));
+        s.tx = String(pay.id || s.tx || "");
+        const status = String(pay.status || "").toLowerCase();
+        if (status === "approved" || status === "authorized") {
+          s.status = "paid";
+          s.paid_ts = Date.now();
+          const em = await sendAccessEmail(env, s);
+          s.email_status = em.sent ? "sent:" + (em.id || "") : "failed:" + (em.reason || "");
+          await writeSales(env, sales);
+          return json({ ok: true, status: "approved", order_id: s.id });
+        }
+        s.status = "mp:" + (status || "rejected");
+        s.email_status = JSON.stringify(pay).slice(0, 200);
+        await writeSales(env, sales);
+        return json({ ok: false, status: status || "rejected", order_id: s.id, detail: String(pay.status_detail || status) }, 402);
       } catch (e) {
         return json({ error: String((e && e.message) || e) }, 500);
       }
