@@ -5,7 +5,40 @@ Fluxo: nome+email (obrigatórios) -> /api/checkout salva venda pendente com UTMs
 -> redireciona p/ fatura NOWPayments -> webhook confirma -> /acesso.html libera
 + email (se RESEND configurado). Dashboard: /admin-vendas.html (Mine123).
 
-PASSO 1 — NOWPayments (API gratuita, payouts em USDT etc.)
+PASSO 1A — NOWPayments (API gratuita, payouts em USDT etc.)
+(cripto direto + cartão-via-parceiro; você sem KYC)
+1. Crie conta em nowpayments.io (só email p/ começar, modo crypto).
+ATENÇÃO: conta vendedor = CPF/CNPJ + banco (KYC total) e recebimento em REAIS.
+Valores cobrados: basic R$ 27,90 / premium R$ 54,90 (ajuste mp_amount em worker.js
+e os botões dos checkouts juntos).
+1. developers.mercadopago.com > Suas integrações > Credenciais > PRODUÇÃO:
+   copie o Access Token (NUNCA a public key para o backend).
+2. Para testar sem gastar: use credenciais de TESTE + usuários de teste.
+3. Webhook: o próprio worker cadastra notification_url
+   (/api/webhook/mercadopago) em cada preference; ative "Notificações IPN/
+   Webhooks" no painel se pedir. A confirmação é lendo o pagamento com seu
+   token (não depende de segredo).
+4. Worker secrets: MP_ACCESS_TOKEN = <access token produção> > Retry deployment.
+5. Faça uma compra teste: botão "Pay with card" -> checkout MP -> pagando,
+   volta p/ /acesso.html e a venda aparece paid no /admin-vendas.html.
+Sem MP_ACCESS_TOKEN, o botão MP mostra "payments not configured" e o
+botão crypto continua valendo se NOWPAYMENTS_API_KEY existir.
+
+PASSO 1B — Mercado Pago Checkout Pro (cartão, liquida em BRL, exige KYC)
+ATENÇÃO: conta vendedor = CPF/CNPJ + banco (KYC total) e recebimento em REAIS.
+Valores cobrados: basic R$ 27,90 / premium R$ 54,90 (ajuste mp_amount em worker.js
+e os botões dos checkouts juntos).
+1. developers.mercadopago.com > Suas integrações > Credenciais > PRODUÇÃO:
+   copie o Access Token (NUNCA a public key para o backend).
+2. Para testar sem gastar: use credenciais de TESTE + usuários de teste.
+3. Webhook: o próprio worker cadastra notification_url
+   (/api/webhook/mercadopago) em cada preference; ative "Notificações IPN/
+   Webhooks" no painel se pedir. A confirmação é lendo o pagamento com seu
+   token (não depende de segredo).
+4. Worker secrets: MP_ACCESS_TOKEN = <access token produção> > Retry deployment.
+5. Faça uma compra teste: botão "Pay with card" -> checkout MP -> pagando,
+   volta p/ /acesso.html e a venda aparece paid no /admin-vendas.html.
+
 1. Crie conta em nowpayments.io (só email p/ começar, modo crypto).
 2. Dashboard > API Keys > Create, copie a PUBLIC key (x-api-key).
 3. Dashboard > Settings > IPN: invente um IPN Secret forte e salve lá.

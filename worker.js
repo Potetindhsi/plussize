@@ -72,12 +72,16 @@ const PRODUCTS = {
     currency: "USD",
     name: "Aurora Vitale — Full Season Access",
     desc: "Full season, lifetime access, all episodes",
+    mp_amount: 27.9,
+    mp_currency: "BRL",
   },
   premium: {
     amount: 10,
     currency: "USD",
     name: "Premium Pack — Full Catalog Access",
     desc: "Full catalog + daily releases, lifetime access",
+    mp_amount: 54.9,
+    mp_currency: "BRL",
   },
 };
 
@@ -256,6 +260,8 @@ export default {
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
           return json({ error: "valid email required" }, 400);
         const u = body.utms && typeof body.utms === "object" ? body.utms : {};
+        const want = body.provider === "nowpayments" ? "nowpayments" : body.provider === "mercadopago" ? "mercadopago" : "";
+        const provider = want || (env.MP_ACCESS_TOKEN ? "mercadopago" : "nowpayments");
         const sale = {
           id: orderId(),
           ts: Date.now(),
@@ -263,8 +269,9 @@ export default {
           email,
           product,
           productName: PRODUCTS[product].name,
-          amount: PRODUCTS[product].amount,
-          currency: PRODUCTS[product].currency,
+          amount: provider === "mercadopago" ? PRODUCTS[product].mp_amount : PRODUCTS[product].amount,
+          currency: provider === "mercadopago" ? PRODUCTS[product].mp_currency : PRODUCTS[product].currency,
+          provider,
           status: "pending",
           utms: {
             source: String(u.source || "").slice(0, 80),
@@ -279,9 +286,59 @@ export default {
           tx: "",
           email_status: "",
         };
+        const origin = url.origin;
+        // ---- Mercado Pago Checkout Pro (BRL settlement) ----
+        if (provider === "mercadopago") {
+          if (!env.MP_ACCESS_TOKEN)
+            return json({ error: "payments not configured (MP_ACCESS_TOKEN)", order_id: sale.id }, 500);
+          const pref = await fetch("https://api.mercadopago.com/checkout/preferences", {
+            method: "POST",
+            headers: { Authorization: "Bearer " + env.MP_ACCESS_TOKEN, "content-type": "application/json" },
+            body: JSON.stringify({
+              items: [
+                {
+                  title: PRODUCTS[product].name,
+                  description: PRODUCTS[product].desc,
+                  quantity: 1,
+                  currency_id: PRODUCTS[product].mp_currency,
+                  unit_price: PRODUCTS[product].mp_amount,
+                },
+              ],
+              payer: { name, email },
+              back_urls: {
+                success: origin + "/acesso.html?order=" + encodeURIComponent(sale.id),
+                failure: origin + (product === "premium" ? "/checkout-10.html" : "/checkout-5.html"),
+                pending: origin + "/acesso.html?order=" + encodeURIComponent(sale.id),
+              },
+              auto_return: "approved",
+              notification_url: origin + "/api/webhook/mercadopago",
+              external_reference: sale.id,
+              metadata: {
+                ab: sale.utms.ab,
+                utm_source: sale.utms.source,
+                utm_medium: sale.utms.medium,
+                utm_campaign: sale.utms.campaign,
+              },
+            }),
+          });
+          const prefJ = await pref.json().catch(() => ({}));
+          if (!pref.ok || !prefJ.init_point) {
+            sale.status = "invoice_failed";
+            sale.email_status = JSON.stringify(prefJ).slice(0, 200);
+            const all = await readSales(env);
+            all.push(sale);
+            await writeSales(env, all);
+            return json({ error: "mercadopago preference failed", detail: JSON.stringify(prefJ).slice(0, 300) }, 502);
+          }
+          sale.invoice_id = String(prefJ.id || "");
+          const allMp = await readSales(env);
+          allMp.push(sale);
+          await writeSales(env, allMp);
+          return json({ ok: true, order_id: sale.id, init_point: prefJ.init_point });
+        }
+        // ---- NOWPayments (crypto / card-via-partner, stablecoin payouts) ----
         if (!env.NOWPAYMENTS_API_KEY)
           return json({ error: "payments not configured (NOWPAYMENTS_API_KEY)", order_id: sale.id }, 500);
-        const origin = url.origin;
         const inv = await fetch("https://api.nowpayments.io/v1/invoice", {
           method: "POST",
           headers: { "x-api-key": env.NOWPAYMENTS_API_KEY, "content-type": "application/json" },
@@ -310,6 +367,44 @@ export default {
         await writeSales(env, all);
         const payUrl = invJ.invoice_url || "https://nowpayments.io/payment/?iid=" + invJ.id;
         return json({ ok: true, order_id: sale.id, invoice_url: payUrl });
+      } catch (e) {
+        return json({ error: String((e && e.message) || e) }, 500);
+      }
+    }
+
+    // /api/webhook/mercadopago (?topic=payment&id= | JSON {type,data.id})
+    if (url.pathname === "/api/webhook/mercadopago") {
+      if (!env.AB_KV) return json({ error: "KV not bound" }, 500);
+      try {
+        const q = url.searchParams;
+        const body = request.method === "POST" ? await request.json().catch(() => ({})) : {};
+        const payId =
+          q.get("id") || q.get("data.id") || (body.data && body.data.id) || body.id || "";
+        if (!payId) return json({ ok: true, note: "no payment id (test ping?)" });
+        if (!env.MP_ACCESS_TOKEN) return json({ error: "MP not configured" }, 500);
+        const pr = await fetch("https://api.mercadopago.com/v1/payments/" + encodeURIComponent(payId), {
+          headers: { Authorization: "Bearer " + env.MP_ACCESS_TOKEN },
+        });
+        const pay = await pr.json().catch(() => ({}));
+        if (!pr.ok) return json({ error: "mp fetch failed", detail: JSON.stringify(pay).slice(0, 200) }, 502);
+        const orderId = String(pay.external_reference || "");
+        const status = String(pay.status || "").toLowerCase();
+        const sales = await readSales(env);
+        const s = sales.find((x) => x.id === orderId);
+        if (!s) return json({ ok: true, note: "order not found" });
+        s.tx = String(pay.id || "");
+        s.pay_currency = String(pay.currency_id || s.currency);
+        if (status === "approved" && s.status !== "paid") {
+          s.status = "paid";
+          s.paid_ts = Date.now();
+          const em = await sendAccessEmail(env, s);
+          s.email_status = em.sent ? "sent:" + (em.id || "") : "failed:" + (em.reason || "");
+          await writeSales(env, sales);
+        } else if (s.status !== "paid") {
+          s.status = "mp:" + status;
+          await writeSales(env, sales);
+        }
+        return json({ ok: true });
       } catch (e) {
         return json({ error: String((e && e.message) || e) }, 500);
       }

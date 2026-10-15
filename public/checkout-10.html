@@ -33,7 +33,7 @@ input:focus{outline:none;border-color:#f2cf78}
 <span class="badge">⭐ PREMIUM • USD</span>
 <h1>Premium Pack — Full Catalog</h1>
 <p class="price">$10.00</p>
-<p class="per">One-time payment • No subscription</p>
+<p class="per">One-time payment • No subscription • <span style="white-space:nowrap">charged as R$ 54,90</span></p>
 <ul>
 <li>• Full catalog of series</li>
 <li>• Daily new releases</li>
@@ -45,34 +45,37 @@ input:focus{outline:none;border-color:#f2cf78}
 <label for="email">Email (access is sent here)</label>
 <input id="email" type="email" placeholder="you@email.com" autocomplete="email">
 <div class="notice">📧 <b>Your access link is sent to this email immediately after payment is confirmed.</b> Double-check the spelling.</div>
-<button class="btn" id="pay">Pay $10.00 →</button>
+<button class="btn" id="pay-mp">Pay R$ 54,90 with card →</button>
+<button class="btn" id="pay-crypto" style="background:linear-gradient(180deg,#8b5cf6,#4c1d95);color:#fff;margin-top:10px">or pay $10.00 with crypto →</button>
 <p class="err" id="err"></p>
-<p class="secure">🔒 Secure payment • Card & crypto accepted via processor</p>
+<p class="secure">🔒 Secure payment • Mercado Pago (card) or crypto</p>
 </div>
 <script>
 (function(){
 function qs(n){ try { return new URLSearchParams(location.search).get(n) || ""; } catch(e){ return ""; } }
 var UTMS = {source: qs("utm_source"), medium: qs("utm_medium"), campaign: qs("utm_campaign"), term: qs("utm_term"), content: qs("utm_content")};
 var AB = qs("ab");
-document.getElementById("pay").addEventListener("click", function(){
+function checkout(provider, btn){
   var name = document.getElementById("name").value.trim();
   var email = document.getElementById("email").value.trim().toLowerCase();
   var err = document.getElementById("err");
   err.style.display = "none";
   if (name.length < 2) { err.textContent = "Please enter your name."; err.style.display = "block"; return; }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { err.textContent = "Please enter a valid email."; err.style.display = "block"; return; }
-  var btn = document.getElementById("pay");
-  btn.disabled = true; btn.textContent = "Processing…";
+  btn.disabled = true; var old = btn.textContent; btn.textContent = "Processing…";
   fetch("/api/checkout", {method: "POST", headers: {"content-type": "application/json"},
-    body: JSON.stringify({product: "premium", name: name, email: email, utms: UTMS, ab: AB})})
+    body: JSON.stringify({product: "premium", provider: provider, name: name, email: email, utms: UTMS, ab: AB})})
     .then(function(r){ return r.json().then(function(j){ return {s: r.status, j: j}; }); })
     .then(function(res){
-      if (res.j.invoice_url) { location.href = res.j.invoice_url; return; }
-      err.textContent = (res.j && res.j.error) || "Payment unavailable, try again.";
-      err.style.display = "block"; btn.disabled = false; btn.textContent = "Pay $10.00 →";
+      var url = res.j.init_point || res.j.invoice_url;
+      if (url) { location.href = url; return; }
+      err.textContent = (res.j && (res.j.detail || res.j.error)) || "Payment unavailable, try again.";
+      err.style.display = "block"; btn.disabled = false; btn.textContent = old;
     })
-    .catch(function(){ err.textContent = "Connection error, try again."; err.style.display = "block"; btn.disabled = false; btn.textContent = "Pay $10.00 →"; });
-});
+    .catch(function(){ err.textContent = "Connection error, try again."; err.style.display = "block"; btn.disabled = false; btn.textContent = old; });
+}
+document.getElementById("pay-mp").addEventListener("click", function(){ checkout("mercadopago", this); });
+document.getElementById("pay-crypto").addEventListener("click", function(){ checkout("nowpayments", this); });
 })();
 </script>
 </body>

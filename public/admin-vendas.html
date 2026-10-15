@@ -59,7 +59,7 @@ input,select{padding:9px;border-radius:8px;border:1px solid #444;background:#0a0
 </div>
 <div class="card">
 <h3>🧾 Orders</h3>
-<table id="t"><tr><th>Date</th><th>Customer</th><th>Product</th><th>$</th><th>Status</th><th>UTMs / AB</th><th>Email delivery</th></tr></table>
+<table id="t"><tr><th>Date</th><th>Customer</th><th>Product</th><th>$</th><th>Via</th><th>Status</th><th>UTMs / AB</th><th>Email delivery</th></tr></table>
 </div>
 </div>
 
@@ -94,9 +94,9 @@ function load(){
       CACHE.forEach(function(x){
         var u = x.utms || {};
         var utm = [u.source && ("src:" + u.source), u.medium && ("med:" + u.medium), u.campaign && ("cmp:" + u.campaign), u.ab && ("ab:" + u.ab)].filter(Boolean).join(" ");
-        html += "<tr class='" + (x.status === "paid" ? "paid" : "pending") + "'><td><small>" + esc(new Date(x.ts).toLocaleString()) + "<br>" + esc(x.id) + "</small></td><td>" + esc(x.name) + "<br><small>" + esc(x.email) + "</small></td><td>" + esc(x.product) + "</td><td>$" + esc(x.amount) + "</td><td><b>" + esc(x.status) + "</b></td><td><small>" + esc(utm || "—") + "</small></td><td><small>" + esc(x.email_status || "—") + "</small></td></tr>";
+        html += "<tr class='" + (x.status === "paid" ? "paid" : "pending") + "'><td><small>" + esc(new Date(x.ts).toLocaleString()) + "<br>" + esc(x.id) + "</small></td><td>" + esc(x.name) + "<br><small>" + esc(x.email) + "</small></td><td>" + esc(x.product) + "</td><td>" + esc(x.currency) + " " + esc(x.amount) + "</td><td><small>" + esc(x.provider === "mercadopago" ? "MP" : "crypto") + "</small></td><td><b>" + esc(x.status) + "</b></td><td><small>" + esc(utm || "—") + "</small></td><td><small>" + esc(x.email_status || "—") + "</small></td></tr>";
       });
-      document.getElementById("t").innerHTML = "<tr><th>Date</th><th>Customer</th><th>Product</th><th>$</th><th>Status</th><th>UTMs / AB</th><th>Email delivery</th></tr>" + (html || "<tr><td colspan='7'>No sales yet.</td></tr>");
+      document.getElementById("t").innerHTML = "<tr><th>Date</th><th>Customer</th><th>Product</th><th>$</th><th>Via</th><th>Status</th><th>UTMs / AB</th><th>Email delivery</th></tr>" + (html || "<tr><td colspan='8'>No sales yet.</td></tr>");
     })
     .catch(function(){ showErr("API error — check Worker + KV."); });
 }
@@ -116,10 +116,10 @@ document.getElementById("f-all").addEventListener("click", function(){
   load();
 });
 document.getElementById("csv").addEventListener("click", function(){
-  var rows = [["date","order","name","email","product","amount","status","utm_source","utm_medium","utm_campaign","ab","email_status"]];
+  var rows = [["date","order","name","email","product","amount","currency","provider","status","utm_source","utm_medium","utm_campaign","ab","email_status"]];
   CACHE.forEach(function(x){
     var u = x.utms || {};
-    rows.push([new Date(x.ts).toISOString(), x.id, x.name, x.email, x.product, x.amount, x.status, u.source||"", u.medium||"", u.campaign||"", u.ab||"", x.email_status||""]);
+    rows.push([new Date(x.ts).toISOString(), x.id, x.name, x.email, x.product, x.amount, x.currency||"", x.provider||"", x.status, u.source||"", u.medium||"", u.campaign||"", u.ab||"", x.email_status||""]);
   });
   var csv = rows.map(function(r){ return r.map(function(c){ return '"' + String(c).replace(/"/g, '""') + '"'; }).join(","); }).join("\n");
   var a = document.createElement("a");
