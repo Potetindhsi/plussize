@@ -498,6 +498,7 @@ export default {
         if (!s) return json({ ok: true, note: "order not found" });
         s.tx = String(pay.id || "");
         s.pay_currency = String(pay.currency_id || s.currency);
+        s.mp_detail = String(pay.status_detail || "");
         if (status === "approved" && s.status !== "paid") {
           s.status = "paid";
           s.paid_ts = Date.now();
