@@ -68,7 +68,7 @@ function checkout(provider, btn, label){
     .then(function(res){
       var url = res.j.init_point || res.j.invoice_url;
       if (url) { location.href = url; return; }
-      err.textContent = (res.j && (res.j.detail || res.j.error)) || "Payment unavailable, try again.";
+      err.textContent = "Payment unavailable right now, please try again in a minute.";
       err.style.display = "block"; btn.disabled = false; btn.textContent = old;
     })
     .catch(function(){ err.textContent = "Connection error, try again."; err.style.display = "block"; btn.disabled = false; btn.textContent = old; });

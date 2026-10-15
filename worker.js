@@ -1,7 +1,10 @@
 // plussizes Worker: static site (./public) + A/B 3x3 API backed by KV.
 // KV: dashboard > Worker plussizes > Settings > Bindings > KV namespace, variable AB_KV.
 const COMBOS = ["s1v1", "s1v2", "s1v3", "s2v1", "s2v2", "s2v3", "s3v1", "s3v2", "s3v3"];
-const PASSWORD = "Mine123";
+// Admin password: set ADMIN_PASSWORD as a Worker secret and change it —
+// "Mine123" is only a fallback and must NOT be used in production.
+const FALLBACK_PASSWORD = "Mine123";
+const adminPw = (env) => env.ADMIN_PASSWORD || FALLBACK_PASSWORD;
 const VALID = /^s[1-3]v[1-3]$/;
 
 const SYNOPSES = {
@@ -218,7 +221,7 @@ export default {
     }
 
     if (url.pathname === "/api/stats") {
-      if (url.searchParams.get("password") !== PASSWORD)
+      if (url.searchParams.get("password") !== adminPw(env))
         return json({ error: "wrong password" }, 401);
       if (!env.AB_KV) return json({ error: "KV not bound (AB_KV)" }, 500);
       try {
@@ -445,7 +448,7 @@ export default {
 
     // GET /api/sales?password=Mine123&from=&to=&product=&status=
     if (url.pathname === "/api/sales") {
-      if (url.searchParams.get("password") !== PASSWORD)
+      if (url.searchParams.get("password") !== adminPw(env))
         return json({ error: "wrong password" }, 401);
       if (!env.AB_KV) return json({ error: "KV not bound (AB_KV)" }, 500);
       try {

@@ -1,6 +1,6 @@
-// GET /api/stats?password=Mine123 -> aggregated metrics (KV)
-// Requires KV binding: AB_KV
-const PASSWORD = "Mine123";
+// GET /api/stats?password=... -> aggregated metrics (KV)
+// Password comes from ADMIN_PASSWORD env (falls back to Mine123 only for dev).
+const FALLBACK_PASSWORD = "Mine123";
 
 const SYNOPSES = {
   1: "The Bride They Should Have Never Underestimated",
@@ -26,7 +26,8 @@ export async function onRequestGet({ request, env }) {
   const headers = { "content-type": "application/json", "cache-control": "no-store" };
   try {
     const url = new URL(request.url);
-    if (url.searchParams.get("password") !== PASSWORD) {
+    const ADMIN_PW = (env && env.ADMIN_PASSWORD) || FALLBACK_PASSWORD;
+    if (url.searchParams.get("password") !== ADMIN_PW) {
       return new Response(JSON.stringify({ error: "wrong password" }), { status: 401, headers });
     }
     if (!env || !env.AB_KV) {
