@@ -29,6 +29,8 @@ h1.title{font-family:'Anton',sans-serif;font-weight:400;text-transform:uppercase
 .click-catcher.top{top:0;left:0;width:100%;height:76px}
 .click-catcher.bottom{bottom:0;left:0;width:100%;height:84px}
 .click-catcher.side{top:76px;bottom:84px;right:0;width:86px}
+.full-lock{position:absolute;inset:0;z-index:40;background:transparent;display:none}
+.video-box.locked .full-lock{display:block}
 .viewer-badge{position:absolute;top:12px;left:12px;z-index:20;display:flex;align-items:center;gap:7px;background:rgba(10,4,6,.68);border:1px solid rgba(255,255,255,.12);color:#fff;font-family:'Oswald',sans-serif;font-size:12px;padding:6px 12px;border-radius:999px;line-height:1.1}
 .dot{width:7px;height:7px;border-radius:50%;background:#ff4747;animation:pulse 1.6s infinite}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,71,71,.55)}70%{box-shadow:0 0 0 7px rgba(255,71,71,0)}100%{box-shadow:0 0 0 0 rgba(255,71,71,0)}}
@@ -77,7 +79,7 @@ footer{text-align:center;color:#8a8fa8;font-size:12px;padding:18px 0 40px}
 <span class="viewer-badge"><span class="dot"></span><span id="viewers">2,058</span>&nbsp;watching now</span>
 <div class="video-box" id="ab-video-box">
 <iframe id="ab-video" src="https://www.tiktok.com/player/v1/7687159415908125985" allow="encrypted-media; picture-in-picture" loading="lazy" title="Preview"></iframe>
-<div class="click-catcher top"></div><div class="click-catcher bottom"></div><div class="click-catcher side"></div>
+<div class="click-catcher top"></div><div class="click-catcher bottom"></div><div class="click-catcher side"></div><div class="full-lock"></div>
 </div>
 </div>
 </div>
@@ -189,7 +191,13 @@ function render(combo, apiMode){
     var on = b.classList.toggle("clamped");
     moreBtn.textContent = on ? "Read more ↓" : "Show less ↑";
   };
-  document.getElementById("ab-video-box").innerHTML = '<iframe src="https://www.tiktok.com/player/v1/' + PREVIEWS[v].id + '" allow="encrypted-media; picture-in-picture" loading="lazy" title="Preview"></iframe><div class="click-catcher top"></div><div class="click-catcher bottom"></div><div class="click-catcher side"></div>';
+  document.getElementById("ab-video-box").innerHTML = '<iframe src="https://www.tiktok.com/player/v1/' + PREVIEWS[v].id + '" allow="encrypted-media; picture-in-picture" loading="lazy" title="Preview"></iframe><div class="click-catcher top"></div><div class="click-catcher bottom"></div><div class="click-catcher side"></div><div class="full-lock"></div>';
+  var vbox = document.getElementById("ab-video-box");
+  vbox.classList.remove("locked");
+  var locked = false;
+  function lock(){ if (locked) return; locked = true; vbox.classList.add("locked"); }
+  vbox.addEventListener("pointerdown", lock, {once: true});
+  window.addEventListener("blur", lock, {once: true});
   var fwd = "";
   try {
     var keep = new URLSearchParams(window.location.search);
