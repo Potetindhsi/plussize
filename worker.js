@@ -428,7 +428,8 @@ export default {
         const cpf = String(body.cpf || "").replace(/\D/g, "").slice(0, 11);
         const inst = Math.max(1, Math.min(12, parseInt(body.installments, 10) || 1));
         if (!orderId || !token) return json({ error: "order/token required" }, 400);
-        if (cpf.length !== 11) return json({ error: "valid CPF required" }, 400);
+        // CPF optional: Brazilians send it (MP requires it for BR cards);
+        // foreign buyers omit it and MP decides on its own risk rules.
         const sales = await readSales(env);
         const s = sales.find((x) => x.id === orderId);
         if (!s) return json({ error: "order not found" }, 404);
@@ -442,7 +443,10 @@ export default {
             description: s.productName + (s.bumps && s.bumps.length ? " + " + s.bumps.join(",") : ""),
             installments: inst,
             ...(pmId ? { payment_method_id: pmId } : {}),
-            payer: { email: s.email, identification: { type: "CPF", number: cpf } },
+            payer: {
+              email: s.email,
+              ...(cpf.length === 11 ? { identification: { type: "CPF", number: cpf } } : {}),
+            },
             external_reference: s.id,
             notification_url: new URL(request.url).origin + "/api/webhook/mercadopago",
             metadata: { ab: (s.utms || {}).ab || "", utm_source: (s.utms || {}).source || "" },

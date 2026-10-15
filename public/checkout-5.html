@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://sdk.mercadopago.com/js/v2"></script>
 <style>
 :root{--primary:#dd3b32;--bg:#ffffff;--soft:#fff9f0;--card:#ffffff;--ink:#232838;--text:#3c4257;--mute:#6b7194;--line:#ecd9a8}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -80,11 +81,19 @@ footer{text-align:center;color:var(--mute);font-size:12px;padding:18px}
 </div>
 <div class="step">3 · Payment</div>
 <div class="pane" id="pane-card">
-<b style="color:var(--ink)">💳 Pay with card</b><br>You'll complete payment securely on Mercado Pago (Visa, Mastercard, Amex — international cards accepted). Instant approval.
+<input id="c-num" placeholder="Card number" inputmode="numeric" maxlength="19" autocomplete="cc-number">
+<div class="grid2">
+<input id="c-exp" placeholder="MM/YY" inputmode="numeric" maxlength="5" autocomplete="cc-exp">
+<input id="c-cvv" placeholder="CVV" inputmode="numeric" maxlength="4" autocomplete="cc-csc">
+</div>
+<input id="c-holder" placeholder="Name printed on card" autocomplete="cc-name">
+<input id="c-cpf" placeholder="CPF (Brazilians only — optional)" inputmode="numeric" maxlength="14">
+<div style="font-size:12px;margin-top:2px">Instant approval · Secure checkout</div>
 </div>
 <div class="total-row"><span class="t-label">Total to pay</span><span class="t-value"><span id="t-usd">$5.00</span></span></div>
 <button class="pay-btn" id="pay">Complete payment →</button>
 <p class="err" id="err"></p>
+<p style="text-align:center;margin-top:10px"><a href="#" id="alt-pay" style="font-size:13px;color:var(--mute)">Having trouble? Complete on Mercado Pago →</a></p>
 <p class="notice">📧 <b>Your access link is sent to this email immediately after payment is confirmed.</b> Double-check the spelling.</p>
 </section>
 <aside>
@@ -126,26 +135,80 @@ function totals(){
   document.getElementById("sum-method").textContent="credit card";
 }
 document.getElementById("bump").addEventListener("click",function(){ bumpOn=!bumpOn; totals(); });
+document.getElementById("c-num").addEventListener("input",function(e){
+  var d=digits(e.target.value).slice(0,16); e.target.value=d.replace(/(\d{4})(?=\d)/g,"$1 ");
+});
+document.getElementById("c-exp").addEventListener("input",function(e){
+  var d=digits(e.target.value).slice(0,4); e.target.value=d.length>2?d.slice(0,2)+"/"+d.slice(2):d;
+});
+document.getElementById("c-cvv").addEventListener("input",function(e){ e.target.value=digits(e.target.value).slice(0,4); });
+document.getElementById("c-cpf").addEventListener("input",function(e){
+  var d=digits(e.target.value).slice(0,11);
+  if(d.length>9)e.target.value=d.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/,"$1.$2.$3-$4");
+  else if(d.length>6)e.target.value=d.replace(/(\d{3})(\d{3})(\d{1,3})/,"$1.$2.$3");
+  else if(d.length>3)e.target.value=d.replace(/(\d{3})(\d{1,3})/,"$1.$2");
+  else e.target.value=d;
+});
 function fail(msg,btn,old){ var err=document.getElementById("err"); err.textContent=msg; err.style.display="block"; btn.disabled=false; btn.textContent=old; }
+function customer(){ return {
+  name:document.getElementById("f-name").value.trim(),
+  email:document.getElementById("f-email").value.trim().toLowerCase() }; }
+function validCustomer(btn){
+  var c=customer(), err=document.getElementById("err"); err.style.display="none";
+  if(c.name.length<2){ fail("Please enter your name.",btn,btn.textContent); return null; }
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email)){ fail("Please enter a valid email.",btn,btn.textContent); return null; }
+  return c;
+}
 function go(btn){
-  var name=document.getElementById("f-name").value.trim();
-  var email=document.getElementById("f-email").value.trim().toLowerCase();
-  var err=document.getElementById("err"); err.style.display="none";
-  if(name.length<2){ fail("Please enter your name.",btn,btn.textContent); return; }
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ fail("Please enter a valid email.",btn,btn.textContent); return; }
+  var c=validCustomer(btn); if(!c) return;
+  var err=document.getElementById("err");
   var old=btn.textContent; btn.disabled=true; btn.textContent="Processing…";
   var bumps=bumpOn?["premium_upgrade"]:[];
+  var num=digits(document.getElementById("c-num").value);
+  var exp=document.getElementById("c-exp").value.split("/");
+  var cvv=digits(document.getElementById("c-cvv").value);
+  var holder=document.getElementById("c-holder").value.trim();
+  var cpf=digits(document.getElementById("c-cpf").value);
+  if(num.length<13){ fail("Check the card number.",btn,old); return; }
+  if(exp.length!==2||!exp[0]||!exp[1]){ fail("Check the expiry (MM/YY).",btn,old); return; }
+  if(cvv.length<3){ fail("Check the CVV.",btn,old); return; }
+  if(holder.length<2){ fail("Enter the name printed on card.",btn,old); return; }
+  if(cpf && cpf.length!==11){ fail("Check the CPF.",btn,old); return; }
   fetch("/api/checkout",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
-    product:"basic",provider:"mercadopago",name:name,email:email,bumps:bumps,utms:UTMS,ab:AB})})
+    product:"basic",provider:"mercadopago",deferred:true,name:c.name,email:c.email,bumps:bumps,utms:UTMS,ab:AB})})
     .then(function(r){return r.json();})
     .then(function(j){
-      if(j.init_point){ location.href=j.init_point; return; }
-      fail("Payment unavailable right now, please try again in a minute.",btn,old);
+      if(!j.order_id) throw 0;
+      var mp=new MercadoPago(MP_PK);
+      var cardData={cardNumber:num,cardholderName:holder,
+        cardExpirationMonth:exp[0],cardExpirationYear:"20"+exp[1],securityCode:cvv};
+      if(cpf) { cardData.identificationType="CPF"; cardData.identificationNumber=cpf; }
+      return mp.getPaymentMethods({bin:num.slice(0,6)}).then(function(m){
+        var pmId=(m&&m.results&&m.results[0]&&m.results[0].id)||"";
+        return mp.createCardToken(cardData).then(function(tok){
+          return fetch("/api/pay/card",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
+            order_id:j.order_id,card_token:tok.id,payment_method_id:pmId,installments:1,cpf:cpf})});
+        });
+      }).then(function(r){return r.json();})
+      .then(function(p){
+        if(p.status==="approved"||p.status==="in_process"||p.status==="pending"){ location.href="/acesso.html?order="+encodeURIComponent(j.order_id); return; }
+        fail("Card declined — try another card or use the Mercado Pago link below.",btn,old);
+      });
     })
-    .catch(function(){ fail("Connection error, try again.",btn,old); });
+    .catch(function(){ fail("Payment error — check card data or try again.",btn,old); });
 }
 document.getElementById("pay").addEventListener("click",function(){go(this);});
 document.getElementById("pay2").addEventListener("click",function(){go(this);});
+document.getElementById("alt-pay").addEventListener("click",function(e){
+  e.preventDefault();
+  var c=validCustomer(document.getElementById("pay")); if(!c) return;
+  var bumps=bumpOn?["premium_upgrade"]:[];
+  fetch("/api/checkout",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
+    product:"basic",provider:"mercadopago",name:c.name,email:c.email,bumps:bumps,utms:UTMS,ab:AB})})
+    .then(function(r){return r.json();})
+    .then(function(j){ if(j.init_point){ location.href=j.init_point; return; } fail("Payment unavailable right now.",document.getElementById("pay"),"Complete payment →"); })
+    .catch(function(){ fail("Connection error, try again.",document.getElementById("pay"),"Complete payment →"); });
+});
 totals();
 var total=15*60,cd=document.getElementById("cd");
 setInterval(function(){var m=Math.floor(total/60),s=total%60;cd.textContent=(m<10?"0":"")+m+":"+(s<10?"0":"")+s;total--;if(total<0)total=15*60;},1000);
