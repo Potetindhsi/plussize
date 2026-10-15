@@ -117,8 +117,6 @@ footer{text-align:center;color:#8a8fa8;font-size:12px;padding:18px 0 40px}
 <details><summary>What if I don't like it?</summary><p>7-day guarantee, 100% refund, no bureaucracy.</p></details>
 </div>
 
-<footer>© Aurora Vitale Series — All rights reserved.</footer>
-<div class="ab-tag" id="ab-tag">AB test • combo …</div>
 </div>
 </section>
 
@@ -194,7 +192,6 @@ function render(combo, apiMode){
     moreBtn.textContent = on ? "Read more ↓" : "Show less ↑";
   };
   document.getElementById("ab-video-box").innerHTML = '<iframe src="https://www.tiktok.com/player/v1/' + PREVIEWS[v].id + '" allow="encrypted-media; picture-in-picture" loading="lazy" title="Preview"></iframe><div class="click-catcher top"></div><div class="click-catcher bottom"></div><div class="click-catcher side"></div>';
-  document.getElementById("ab-tag").textContent = "AB test active \u2022 combo " + combo + (apiMode ? "" : " (local mode — bind KV)");
   var fwd = "";
   try {
     var keep = new URLSearchParams(window.location.search);
