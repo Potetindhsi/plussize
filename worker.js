@@ -436,7 +436,11 @@ export default {
         if (s.status === "paid") return json({ ok: true, status: "approved", order_id: s.id });
         const pr = await fetch("https://api.mercadopago.com/v1/payments", {
           method: "POST",
-          headers: { Authorization: "Bearer " + env.MP_ACCESS_TOKEN, "content-type": "application/json" },
+          headers: {
+            Authorization: "Bearer " + env.MP_ACCESS_TOKEN,
+            "content-type": "application/json",
+            "X-Idempotency-Key": (crypto.randomUUID ? crypto.randomUUID() : orderId + "-" + Date.now()),
+          },
           body: JSON.stringify({
             transaction_amount: Number(s.amount),
             token,
