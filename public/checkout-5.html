@@ -68,17 +68,7 @@ footer{text-align:center;color:var(--mute);font-size:12px;padding:18px}
 <div class="step">1 · Your details</div>
 <input id="f-name" placeholder="Full name" autocomplete="name">
 <input id="f-email" type="email" placeholder="Your best email (delivery here)" autocomplete="email">
-<div class="step">2 · Add to your order</div>
-<div class="bump off" id="bump">
-<img src="assets/cover.jpg" alt="">
-<div class="bump-info">
-<div class="bump-title">⭐ PREMIUM UPGRADE — full catalog</div>
-<div class="bump-price">+$5.00</div>
-<small>Unlock all series + daily releases</small>
-</div>
-<button type="button" class="bump-btn" id="bump-btn">+ Add</button>
-</div>
-<div class="step">3 · Payment</div>
+<div class="step">2 · Payment</div>
 <div class="pane" id="pane-card">
 <input id="c-num" placeholder="Card number" inputmode="numeric" maxlength="19" autocomplete="cc-number">
 <div class="grid2">
@@ -95,7 +85,6 @@ footer{text-align:center;color:var(--mute);font-size:12px;padding:18px}
 <div class="total-row"><span class="t-label">Total to pay</span><span class="t-value"><span id="t-usd">$5.00</span></span></div>
 <button class="pay-btn" id="pay">Complete payment →</button>
 <p class="err" id="err"></p>
-<p style="text-align:center;margin-top:10px"><a href="#" id="alt-pay" style="font-size:13px;color:var(--mute)">Having trouble? Complete on Mercado Pago →</a></p>
 <p class="notice">📧 <b>Your access link is sent to this email immediately after payment is confirmed.</b> Double-check the spelling.</p>
 <div class="guarantee" style="display:flex;gap:8px;font-size:12.5px;color:var(--mute);margin-top:14px;line-height:1.5">🛡️ 7-day guarantee. No questions, no hassle.</div>
 </section>
@@ -116,11 +105,11 @@ try {
   ["f-name","f-email","c-num","c-exp","c-cvv","c-holder","c-doc"].forEach(function(id){
     if(saved[id] && document.getElementById(id)) document.getElementById(id).value=saved[id];
   });
-  if(saved.bump){ bumpOn=true; }
+  if(saved.bump){ bumpOn=false; }
 } catch(e){}
 function persist(){
   try {
-    var o={bump:bumpOn?1:0};
+    var o={};
     ["f-name","f-email","c-num","c-exp","c-cvv","c-holder","c-doc"].forEach(function(id){
       var el=document.getElementById(id); if(el) o[id]=el.value;
     });
@@ -133,13 +122,8 @@ function clearPersist(){ try { localStorage.removeItem(LSKEY); } catch(e){} }
 });
 function fmt$(v){ return "$"+v.toFixed(2); }
 function totals(){
-  var us=BASE.usd+(bumpOn?BUMP.usd:0);
-  document.getElementById("t-usd").textContent=fmt$(us);
-  document.getElementById("bump-btn").textContent=bumpOn?"✓ Added":"+ Add";
-  document.getElementById("bump").classList.toggle("on",bumpOn);
-  document.getElementById("bump").classList.toggle("off",!bumpOn);
+  document.getElementById("t-usd").textContent=fmt$(BASE.usd);
 }
-document.getElementById("bump").addEventListener("click",function(){ bumpOn=!bumpOn; totals(); persist(); });
 document.getElementById("c-num").addEventListener("input",function(e){
   var d=digits(e.target.value).slice(0,16); e.target.value=d.replace(/(\d{4})(?=\d)/g,"$1 ");
 });
@@ -171,7 +155,7 @@ function go(btn){
   var c=validCustomer(btn); if(!c) return;
   var err=document.getElementById("err");
   var old=btn.textContent; btn.disabled=true; btn.textContent="Processing…";
-  var bumps=bumpOn?["premium_upgrade"]:[];
+  var bumps=[];
   var num=digits(document.getElementById("c-num").value);
   var exp=document.getElementById("c-exp").value.split("/");
   var cvv=digits(document.getElementById("c-cvv").value);
@@ -203,7 +187,7 @@ function go(btn){
         failDecline(btn,old,function(){
           var cc=validCustomer(document.getElementById("pay")); if(!cc) return;
           fetch("/api/checkout",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
-            product:"basic",provider:"mercadopago",name:cc.name,email:cc.email,bumps:bumpOn?["premium_upgrade"]:[],utms:UTMS,ab:AB})})
+            product:"basic",provider:"mercadopago",name:cc.name,email:cc.email,bumps:[],utms:UTMS,ab:AB})})
             .then(function(r){return r.json();})
             .then(function(jj){ if(jj.init_point){ clearPersist(); location.href=jj.init_point; return; } fail("Payment unavailable right now.",btn,old); })
             .catch(function(){ fail("Connection error, try again.",btn,old); });
@@ -213,16 +197,6 @@ function go(btn){
     .catch(function(){ fail("Payment error — check card data or try again.",btn,old); });
 }
 document.getElementById("pay").addEventListener("click",function(){go(this);});
-document.getElementById("alt-pay").addEventListener("click",function(e){
-  e.preventDefault();
-  var c=validCustomer(document.getElementById("pay")); if(!c) return;
-  var bumps=bumpOn?["premium_upgrade"]:[];
-  fetch("/api/checkout",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
-    product:"basic",provider:"mercadopago",name:c.name,email:c.email,bumps:bumps,utms:UTMS,ab:AB})})
-    .then(function(r){return r.json();})
-    .then(function(j){ if(j.init_point){ location.href=j.init_point; return; } fail("Payment unavailable right now.",document.getElementById("pay"),"Complete payment →"); })
-    .catch(function(){ fail("Connection error, try again.",document.getElementById("pay"),"Complete payment →"); });
-});
 totals();
 var total=15*60,cd=document.getElementById("cd");
 setInterval(function(){var m=Math.floor(total/60),s=total%60;cd.textContent=(m<10?"0":"")+m+":"+(s<10?"0":"")+s;total--;if(total<0)total=15*60;},1000);

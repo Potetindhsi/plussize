@@ -85,7 +85,6 @@ ul.ben li{margin:6px 0}
 <div class="total-row"><span class="t-label">Total to pay</span><span class="t-value">$10.00</span></div>
 <button class="pay-btn" id="pay">Complete payment →</button>
 <p class="err" id="err"></p>
-<p style="text-align:center;margin-top:10px"><a href="#" id="alt-pay" style="font-size:13px;color:var(--mute)">Having trouble? Complete on Mercado Pago →</a></p>
 <p class="notice">📧 <b>Your access link is sent to this email immediately after payment is confirmed.</b> Double-check the spelling.</p>
 <div class="guarantee" style="display:flex;gap:8px;font-size:12.5px;color:var(--mute);margin-top:14px;line-height:1.5">🛡️ 7-day guarantee. No questions, no hassle.</div>
 </section>
@@ -190,15 +189,6 @@ function go(btn){
     .catch(function(){ fail("Payment error — check card data or try again.",btn,old); });
 }
 document.getElementById("pay").addEventListener("click",function(){go(this);});
-document.getElementById("alt-pay").addEventListener("click",function(e){
-  e.preventDefault();
-  var c=validCustomer(document.getElementById("pay")); if(!c) return;
-  fetch("/api/checkout",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
-    product:"premium",provider:"mercadopago",name:c.name,email:c.email,bumps:[],utms:UTMS,ab:AB})})
-    .then(function(r){return r.json();})
-    .then(function(j){ if(j.init_point){ clearPersist(); location.href=j.init_point; return; } fail("Payment unavailable right now.",document.getElementById("pay"),"Complete payment →"); })
-    .catch(function(){ fail("Connection error, try again.",document.getElementById("pay"),"Complete payment →"); });
-});
 var total=15*60,cd=document.getElementById("cd");
 setInterval(function(){var m=Math.floor(total/60),s=total%60;cd.textContent=(m<10?"0":"")+m+":"+(s<10?"0":"")+s;total--;if(total<0)total=15*60;},1000);
 })();
