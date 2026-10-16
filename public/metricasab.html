@@ -100,12 +100,15 @@ function load(){
       var byV={1:{views:0,clicks:0},2:{views:0,clicks:0},3:{views:0,clicks:0}};
       var tV=0,tC=0,best=null,bestR=-1;
       order.forEach(function(k){ var r=stats[k]; if(!r) return; tV+=r.views; tC+=r.clicks; byS[r.s].views+=r.views; byS[r.s].clicks+=r.clicks; byV[r.v].views+=r.views; byV[r.v].clicks+=r.clicks; var rate=cvr(r.clicks,r.views); if(r.views>0&&rate>bestR){bestR=rate;best=k;} });
-      document.getElementById("totals").textContent = "Período: views " + tV + " • cliques " + tC + " • CVR " + cvr(tC,tV).toFixed(2) + "% • Rotação global round-robin. Clique = botão checkout.";
+      document.getElementById("totals").textContent =
+        ((F.from || F.to) && tV === 0 && tC === 0
+          ? "Período: ⚠️ sem dados neste intervalo (0 views, 0 cliques) — confira as datas."
+          : "Período: views " + tV + " • cliques " + tC + " • CVR " + cvr(tC,tV).toFixed(2) + "% • Rotação global round-robin. Clique = botão checkout.");
       var at = res.body.all, aV = 0, aC = 0;
       if (at) Object.keys(at).forEach(function(k){ aV += at[k].views; aC += at[k].clicks; });
       document.getElementById("period-note").textContent =
         (F.from || F.to ? "Filtrado de " + (F.from ? new Date(F.from).toLocaleDateString() : "…") + " até " + (F.to ? new Date(F.to).toLocaleDateString() : "…") + ". " : "Sem filtro (tudo). ") +
-        "Acumulado geral: " + aV + " views • " + aC + " cliques." +
+        "Acumulado geral (tudo, só referência): " + aV + " views • " + aC + " cliques." +
         (res.body.mode === "daily" ? " Fonte: dias (UTC)." + (res.body.partial ? " ⚠️ Dias antigos sem registro diário — número parcial." : "") : "");
       var html="";
       order.forEach(function(k){ var r=stats[k]; var rate=cvr(r.clicks,r.views); var b=(k===best)?' class="best"':""; html+="<tr"+b+"><td><b>"+k+"</b>"+(k===best?' <span class="badge">BEST</span>':"")+"</td><td>S"+r.s+" — "+esc((syn[r.s]||"").substr(0,38))+"</td><td>V"+r.v+"</td><td>"+r.views+"</td><td>"+r.clicks+"</td><td><b>"+rate.toFixed(2)+"%</b></td></tr>"; });
