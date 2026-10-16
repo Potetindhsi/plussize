@@ -664,7 +664,6 @@ export default {
         const all = await readSales(env);
         const s = all.find((x) => x.id === order);
         if (!s) return json({ error: "order not found" }, 404);
-        if (s.status !== "paid") return json({ error: "order is not paid yet" }, 400);
         const em = await sendAccessEmail(env, s);
         s.email_status = em.sent ? "sent:" + em.id : "failed:" + (em.reason || "?");
         await writeSales(env, all);
