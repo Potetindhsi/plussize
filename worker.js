@@ -68,6 +68,70 @@ function aggregate(ev) {
   return st;
 }
 
+// ---------- DAILY BUCKETS (filtro por dia consistente) ----------
+// O log bruto (ab_events) perde eventos sob acessos simultâneos e é podado
+// em 20 mil — por isso o filtro por dia divergia do acumulado. Estes
+// baldes diários (UTC) têm a mesma característica dos contadores gerais,
+// então o filtrado passa a bater com o total.
+const DAY_MS = 86400000;
+const dayKey = (iso) => "ab_day:" + iso;
+const utcDayStart = (ts) => {
+  const d = new Date(ts);
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+};
+
+async function bumpDay(env, combo, event) {
+  try {
+    const iso = new Date().toISOString().slice(0, 10);
+    const raw = await env.AB_KV.get(dayKey(iso));
+    const b = raw ? JSON.parse(raw) : {};
+    if (!b[combo]) b[combo] = { views: 0, clicks: 0 };
+    if (event === "view") b[combo].views++;
+    else b[combo].clicks++;
+    await env.AB_KV.put(dayKey(iso), JSON.stringify(b));
+  } catch (e) {}
+}
+
+// Soma os baldes dos dias UTC totalmente dentro de [from,to].
+// Dias de borda (parciais) e dias sem balde usam o log bruto como fallback.
+// Retorna {stats, partial} — partial=true se algum dia interior não tinha balde.
+async function aggregateByDays(env, ev, from, to) {
+  const first = utcDayStart(from);
+  const last = utcDayStart(to);
+  const days = [];
+  for (let t = first; t <= last && days.length <= 93; t += DAY_MS)
+    days.push(new Date(t).toISOString().slice(0, 10));
+  const vals = await Promise.all(days.map((d) => env.AB_KV.get(dayKey(d)).catch(() => null)));
+  const agg = defaults();
+  let partial = false;
+  for (let i = 0; i < days.length; i++) {
+    const dStart = first + i * DAY_MS;
+    const dEnd = dStart + DAY_MS - 1;
+    const full = dStart >= from && dEnd <= to;
+    let b = null;
+    try { b = vals[i] ? JSON.parse(vals[i]) : null; } catch (e) { b = null; }
+    if (b && full) {
+      for (const k of COMBOS) {
+        const c = b[k];
+        if (c) {
+          agg[k].views += c.views | 0;
+          agg[k].clicks += c.clicks | 0;
+        }
+      }
+      continue;
+    }
+    if (!b) partial = true;
+    for (const x of ev) {
+      if (x.t < from || x.t > to) continue;
+      if (x.t < dStart || x.t > dEnd) continue;
+      if (!agg[x.c]) continue;
+      if (x.e === "view") agg[x.c].views++;
+      else if (x.e === "click") agg[x.c].clicks++;
+    }
+  }
+  return { stats: agg, partial };
+}
+
 // ---------- CHECKOUT + SALES (NOWPayments, stablecoin payouts) ----------
 const PRODUCTS = {
   basic: {
@@ -403,6 +467,9 @@ export default {
         try {
           await logEvent(env, combo, event);
         } catch (e) {}
+        try {
+          await bumpDay(env, combo, event);
+        } catch (e) {}
         return json({ ok: true });
       } catch (e) {
         return json({ error: String((e && e.message) || e) }, 500);
@@ -423,8 +490,15 @@ export default {
         const q = url.searchParams;
         const from = q.get("from") ? parseInt(q.get("from"), 10) || 0 : 0;
         const to = q.get("to") ? parseInt(q.get("to"), 10) || 0 : 0;
-        const stats =
-          from || to ? aggregate(filterEvents(ev, from, to)) : all;
+        let stats = all, mode = "all", partial = false;
+        if (from || to) {
+          if (from && to && to >= from && to - from <= 93 * DAY_MS) {
+            const r = await aggregateByDays(env, ev, from, to);
+            stats = r.stats; partial = r.partial; mode = "daily";
+          } else {
+            stats = aggregate(filterEvents(ev, from, to)); mode = "log";
+          }
+        }
         return json({
           stats,
           all,
@@ -433,6 +507,8 @@ export default {
           from,
           to,
           events: ev.length,
+          mode,
+          partial,
         });
       } catch (e) {
         return json({ error: String((e && e.message) || e) }, 500);

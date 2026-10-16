@@ -38,6 +38,16 @@ export async function onRequestPost({ request, env }) {
       if (ev.length > MAX) ev = ev.slice(ev.length - MAX);
       await env.AB_KV.put("ab_events", JSON.stringify(ev));
     } catch (e) {}
+    try {
+      const iso = new Date().toISOString().slice(0, 10);
+      const key = "ab_day:" + iso;
+      const rawD = await env.AB_KV.get(key);
+      const b = rawD ? JSON.parse(rawD) : {};
+      if (!b[combo]) b[combo] = { views: 0, clicks: 0 };
+      if (event === "view") b[combo].views++;
+      else b[combo].clicks++;
+      await env.AB_KV.put(key, JSON.stringify(b));
+    } catch (e) {}
     return new Response(JSON.stringify({ ok: true }), { headers });
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e && e.message || e) }), { status: 500, headers });

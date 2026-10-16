@@ -42,17 +42,48 @@ export async function onRequestGet({ request, env }) {
     } catch (e) {}
     const from = url.searchParams.get("from") ? parseInt(url.searchParams.get("from"), 10) || 0 : 0;
     const to = url.searchParams.get("to") ? parseInt(url.searchParams.get("to"), 10) || 0 : 0;
-    let stats = all;
+    const COMBOS = ["s1v1","s1v2","s1v3","s2v1","s2v2","s2v3","s3v1","s3v2","s3v3"];
+    const DAY_MS = 86400000;
+    function utcDayStart(ts){ const d = new Date(ts); return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()); }
+    let stats = all, mode = "all", partial = false;
     if (from || to) {
-      stats = defaults();
-      for (const x of ev) {
-        if ((from && x.t < from) || (to && x.t > to)) continue;
-        if (!stats[x.c]) continue;
-        if (x.e === "view") stats[x.c].views++;
-        else if (x.e === "click") stats[x.c].clicks++;
+      if (from && to && to >= from && to - from <= 93 * DAY_MS) {
+        const first = utcDayStart(from), last = utcDayStart(to);
+        const days = [];
+        for (let t = first; t <= last && days.length <= 93; t += DAY_MS) days.push(new Date(t).toISOString().slice(0, 10));
+        const vals = await Promise.all(days.map((d) => env.AB_KV.get("ab_day:" + d).catch(() => null)));
+        stats = defaults();
+        for (let i = 0; i < days.length; i++) {
+          const dStart = first + i * DAY_MS, dEnd = dStart + DAY_MS - 1;
+          const full = dStart >= from && dEnd <= to;
+          let b = null;
+          try { b = vals[i] ? JSON.parse(vals[i]) : null; } catch (e) { b = null; }
+          if (b && full) {
+            for (const k of COMBOS) { const c = b[k]; if (c) { stats[k].views += c.views | 0; stats[k].clicks += c.clicks | 0; } }
+            continue;
+          }
+          if (!b) partial = true;
+          for (const x of ev) {
+            if ((from && x.t < from) || (to && x.t > to)) continue;
+            if (x.t < dStart || x.t > dEnd) continue;
+            if (!stats[x.c]) continue;
+            if (x.e === "view") stats[x.c].views++;
+            else if (x.e === "click") stats[x.c].clicks++;
+          }
+        }
+        mode = "daily";
+      } else {
+        stats = defaults();
+        for (const x of ev) {
+          if ((from && x.t < from) || (to && x.t > to)) continue;
+          if (!stats[x.c]) continue;
+          if (x.e === "view") stats[x.c].views++;
+          else if (x.e === "click") stats[x.c].clicks++;
+        }
+        mode = "log";
       }
     }
-    return new Response(JSON.stringify({ stats, all, synopses: SYNOPSES, previews: PREVIEWS, from, to, events: ev.length }), { headers });
+    return new Response(JSON.stringify({ stats, all, synopses: SYNOPSES, previews: PREVIEWS, from, to, events: ev.length, mode, partial }), { headers });
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e && e.message || e) }), { status: 500, headers });
   }

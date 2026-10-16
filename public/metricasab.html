@@ -72,7 +72,7 @@ function cvr(c,v){ return v>0 ? (c/v*100) : 0; }
 function esc(t){ var d=document.createElement("div"); d.textContent=t; return d.innerHTML; }
 function dayStart(d){ d.setHours(0,0,0,0); return d.getTime(); }
 function dayEnd(d){ d.setHours(23,59,59,999); return d.getTime(); }
-function isoDate(ts){ var d=new Date(ts); return d.toISOString().slice(0,10); }
+function isoDate(ts){ var d=new Date(ts); var m=("0"+(d.getMonth()+1)).slice(-2), dy=("0"+d.getDate()).slice(-2); return d.getFullYear()+"-"+m+"-"+dy; }
 function setRange(r){
   var now = new Date();
   if (r === "today") { F.from = dayStart(new Date()); F.to = dayEnd(new Date()); }
@@ -105,7 +105,8 @@ function load(){
       if (at) Object.keys(at).forEach(function(k){ aV += at[k].views; aC += at[k].clicks; });
       document.getElementById("period-note").textContent =
         (F.from || F.to ? "Filtrado de " + (F.from ? new Date(F.from).toLocaleDateString() : "…") + " até " + (F.to ? new Date(F.to).toLocaleDateString() : "…") + ". " : "Sem filtro (tudo). ") +
-        "Acumulado geral: " + aV + " views • " + aC + " cliques.";
+        "Acumulado geral: " + aV + " views • " + aC + " cliques." +
+        (res.body.mode === "daily" ? " Fonte: dias (UTC)." + (res.body.partial ? " ⚠️ Dias antigos sem registro diário — número parcial." : "") : "");
       var html="";
       order.forEach(function(k){ var r=stats[k]; var rate=cvr(r.clicks,r.views); var b=(k===best)?' class="best"':""; html+="<tr"+b+"><td><b>"+k+"</b>"+(k===best?' <span class="badge">BEST</span>':"")+"</td><td>S"+r.s+" — "+esc((syn[r.s]||"").substr(0,38))+"</td><td>V"+r.v+"</td><td>"+r.views+"</td><td>"+r.clicks+"</td><td><b>"+rate.toFixed(2)+"%</b></td></tr>"; });
       document.getElementById("t-combos").innerHTML = "<tr><th>Combo</th><th>Synopsis</th><th>Preview</th><th>Views</th><th>Clicks</th><th>CVR</th></tr>"+html;
