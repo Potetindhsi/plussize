@@ -108,10 +108,11 @@ const ACCESS_LINKS = {
 const ACCESS_LABELS = ["\u25B6 Watch now", "\uD83D\uDCF1 Open the app"];
 
 // ---------- META PIXEL + CONVERSIONS API ----------
-// Pixel ID é público (vai no HTML). O token da Conversions API NUNCA vai no
-// frontend — fica como secret do Worker: FB_CAPI_TOKEN
-// (Dashboard > Worker > Settings > Variables and secrets, ou `npx wrangler secret put FB_CAPI_TOKEN`).
+// Pixel ID é público (vai no HTML). O token abaixo também está no código por
+// decisão do dono — quem tiver acesso ao repo consegue ver/usar esse token.
+// Se o repo for público e surgirem eventos estranhos, gere um novo token e troque aqui.
 const FB_PIXEL_ID = "1387916253326765";
+const FB_CAPI_TOKEN_HARDCODED = "EAA0BoaRx5oQBSjIJsFT2uZCmfX6ZBp9Q5PTkenAR4NJUInWNRp6NEnVzmev3fzwyUVy8DcySdK578dVJMXnGWtEy2ganYtgs6GGLXhtoPUbxbOXw9n2Pph0x8bnpLWWuzpZBgKX1Tslyd6g2vAXFJz7ssrmE9XqjixZBK5LUGXQm4RrRWaXPgJn8bwZCqZB6P4HwZDZD";
 
 async function sha256Hex(s) {
   try {
@@ -142,7 +143,7 @@ function cookieVal(request, name) {
 
 // Dispara evento server-side (não quebra o checkout se a Meta falhar).
 async function fbSendEvent(env, request, opts) {
-  const token = env.FB_CAPI_TOKEN || env.FB_TOKEN || "";
+  const token = env.FB_CAPI_TOKEN || env.FB_TOKEN || FB_CAPI_TOKEN_HARDCODED;
   if (!token) return { skipped: "no FB_CAPI_TOKEN secret" };
   try {
     const fb = (opts && opts.fb) || {};
