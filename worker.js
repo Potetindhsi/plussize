@@ -183,17 +183,21 @@ async function sendAccessEmail(env, sale) {
     `</div>`;
   // Option A (no domain, no phone): Mailjet single sender (free 200/day).
   // Mailjet > Account > Senders & Domains > add ONE email, confirm it,
-  // then API Keys (public + private). Secrets: MJ_PUBLIC, MJ_PRIVATE, MJ_FROM.
-  if (env.MJ_PUBLIC && env.MJ_PRIVATE && env.MJ_FROM) {
+  // then API Keys (public + private). Secrets: MJ_PUBLIC, MJ_PRIVATE, MJ_FROM
+  // (MAILJET_PUBLIC / MAILJET_PRIVATE / MAILJET_FROM also accepted).
+  const mjPub = env.MJ_PUBLIC || env.MAILJET_PUBLIC;
+  const mjPriv = env.MJ_PRIVATE || env.MAILJET_PRIVATE;
+  const mjFrom = env.MJ_FROM || env.MAILJET_FROM;
+  if (mjPub && mjPriv && mjFrom) {
     try {
-      const key = btoa(env.MJ_PUBLIC + ":" + env.MJ_PRIVATE);
+      const key = btoa(mjPub + ":" + mjPriv);
       const r = await fetch("https://api.mailjet.com/v3.1/send", {
         method: "POST",
         headers: { Authorization: "Basic " + key, "content-type": "application/json" },
         body: JSON.stringify({
           Messages: [
             {
-              From: { Email: env.MJ_FROM, Name: "Access" },
+              From: { Email: mjFrom, Name: "Access" },
               To: [{ Email: sale.email, Name: sale.name }],
               Subject: subj,
               HTMLPart: html,
@@ -202,6 +206,8 @@ async function sendAccessEmail(env, sale) {
         }),
       });
       if (r.ok) return { sent: true, id: "mailjet" };
+      const j = await r.json().catch(() => ({}));
+      return { sent: false, reason: "mailjet:" + JSON.stringify(j).slice(0, 180) };
     } catch (e) {}
   }
   // Option B: SendGrid Single Sender (free 100/day).
