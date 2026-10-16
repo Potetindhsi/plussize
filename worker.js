@@ -107,6 +107,98 @@ const ACCESS_LINKS = {
 // Button labels for the access email (index-matched to ACCESS_LINKS)
 const ACCESS_LABELS = ["\u25B6 Watch now", "\uD83D\uDCF1 Open the app"];
 
+// ---------- META PIXEL + CONVERSIONS API ----------
+// Pixel ID é público (vai no HTML). O token da Conversions API NUNCA vai no
+// frontend — fica como secret do Worker: FB_CAPI_TOKEN
+// (Dashboard > Worker > Settings > Variables and secrets, ou `npx wrangler secret put FB_CAPI_TOKEN`).
+const FB_PIXEL_ID = "1387916253326765";
+
+async function sha256Hex(s) {
+  try {
+    const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(String(s || "").trim().toLowerCase()));
+    return Array.from(new Uint8Array(d), (b) => b.toString(16).padStart(2, "0")).join("");
+  } catch (e) {
+    return "";
+  }
+}
+
+function clientIp(request) {
+  return (
+    request.headers.get("cf-connecting-ip") ||
+    (request.headers.get("x-forwarded-for") || "").split(",")[0].trim() ||
+    ""
+  );
+}
+
+function cookieVal(request, name) {
+  try {
+    const c = request.headers.get("cookie") || "";
+    const m = c.match(new RegExp("(?:^|; )" + name + "=([^;]*)"));
+    return m ? decodeURIComponent(m[1]) : "";
+  } catch (e) {
+    return "";
+  }
+}
+
+// Dispara evento server-side (não quebra o checkout se a Meta falhar).
+async function fbSendEvent(env, request, opts) {
+  const token = env.FB_CAPI_TOKEN || env.FB_TOKEN || "";
+  if (!token) return { skipped: "no FB_CAPI_TOKEN secret" };
+  try {
+    const fb = (opts && opts.fb) || {};
+    const fbp = fb.fbp || cookieVal(request, "_fbp") || "";
+    const fbc = fb.fbc || cookieVal(request, "_fbc") || "";
+    const emHash = opts.email ? await sha256Hex(opts.email) : "";
+    const fnHash = opts.firstName ? await sha256Hex(opts.firstName) : "";
+    const lnHash = opts.lastName ? await sha256Hex(opts.lastName) : "";
+    const user_data = {
+      client_ip_address: clientIp(request),
+      client_user_agent: request.headers.get("user-agent") || "",
+      ...(fbp ? { fbp } : {}),
+      ...(fbc ? { fbc } : {}),
+      ...(emHash ? { em: [emHash] } : {}),
+      ...(fnHash ? { fn: [fnHash] } : {}),
+      ...(lnHash ? { ln: [lnHash] } : {}),
+    };
+    const payload = {
+      data: [
+        {
+          event_name: opts.event_name,
+          event_time: Math.floor(Date.now() / 1000),
+          event_id: opts.event_id || undefined,
+          action_source: "website",
+          event_source_url: fb.event_source_url || opts.event_source_url || "",
+          user_data,
+          custom_data: opts.custom_data || {},
+        },
+      ],
+    };
+    const r = await fetch(
+      "https://graph.facebook.com/v19.0/" + FB_PIXEL_ID + "/events?access_token=" + encodeURIComponent(token),
+      { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) }
+    );
+    const j = await r.json().catch(() => ({}));
+    return { ok: r.ok, resp: JSON.stringify(j).slice(0, 300) };
+  } catch (e) {
+    return { ok: false, error: String((e && e.message) || e).slice(0, 200) };
+  }
+}
+
+function fbFire(env, ctx, request, opts) {
+  try {
+    const p = fbSendEvent(env, request, opts);
+    if (ctx && ctx.waitUntil) ctx.waitUntil(p.catch(() => ({})));
+    else p.catch(() => ({}));
+  } catch (e) {}
+}
+
+function splitName(full) {
+  const parts = String(full || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return {};
+  if (parts.length === 1) return { firstName: parts[0] };
+  return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
+}
+
 const MAX_SALES = 5000;
 
 function orderId() {
@@ -270,7 +362,7 @@ async function sendAccessEmail(env, sale) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
     if (url.pathname === "/api/next") {
@@ -397,10 +489,20 @@ export default {
           email_status: "",
         };
         // deferred:true -> only saves the pending order (transparent card flow charges after)
+        // CAPI: InitiateCheckout server-side (order criado)
         if (body.deferred === true) {
           const all = await readSales(env);
           all.push(sale);
           await writeSales(env, all);
+          fbFire(env, ctx, request, {
+            event_name: "InitiateCheckout",
+            event_id: sale.id + ":initiate",
+            fb: body.fb || {},
+            event_source_url: (body.fb && body.fb.event_source_url) || url.origin + (product === "premium" ? "/checkout-10.html" : "/checkout-5.html"),
+            email: sale.email,
+            ...splitName(sale.name),
+            custom_data: { value: usdTotal, currency: "USD", content_ids: [product], content_type: "product", order_id: sale.id },
+          });
           return json({ ok: true, order_id: sale.id, amount: sale.amount, currency: sale.currency });
         }
         const origin = url.origin;
@@ -461,6 +563,15 @@ export default {
           const allMp = await readSales(env);
           allMp.push(sale);
           await writeSales(env, allMp);
+          fbFire(env, ctx, request, {
+            event_name: "InitiateCheckout",
+            event_id: sale.id + ":initiate",
+            fb: body.fb || {},
+            event_source_url: (body.fb && body.fb.event_source_url) || origin + (product === "premium" ? "/checkout-10.html" : "/checkout-5.html"),
+            email: sale.email,
+            ...splitName(sale.name),
+            custom_data: { value: usdTotal, currency: "USD", content_ids: [product], content_type: "product", order_id: sale.id },
+          });
           return json({ ok: true, order_id: sale.id, init_point: prefJ.init_point });
         }
         // ---- NOWPayments (crypto / card-via-partner, stablecoin payouts) ----
@@ -492,6 +603,15 @@ export default {
         const all = await readSales(env);
         all.push(sale);
         await writeSales(env, all);
+        fbFire(env, ctx, request, {
+          event_name: "InitiateCheckout",
+          event_id: sale.id + ":initiate",
+          fb: body.fb || {},
+          event_source_url: (body.fb && body.fb.event_source_url) || origin + (product === "premium" ? "/checkout-10.html" : "/checkout-5.html"),
+          email: sale.email,
+          ...splitName(sale.name),
+          custom_data: { value: usdTotal, currency: "USD", content_ids: [product], content_type: "product", order_id: sale.id },
+        });
         const payUrl = invJ.invoice_url || "https://nowpayments.io/payment/?iid=" + invJ.id;
         return json({ ok: true, order_id: sale.id, invoice_url: payUrl });
       } catch (e) {
@@ -519,6 +639,16 @@ export default {
         const s = sales.find((x) => x.id === orderId);
         if (!s) return json({ error: "order not found" }, 404);
         if (s.status === "paid") return json({ ok: true, status: "approved", order_id: s.id });
+        // CAPI: AddPaymentInfo (tentou pagar)
+        fbFire(env, ctx, request, {
+          event_name: "AddPaymentInfo",
+          event_id: s.id + ":addpay",
+          fb: body.fb || {},
+          event_source_url: (body.fb && body.fb.event_source_url) || "",
+          email: s.email,
+          ...splitName(s.name),
+          custom_data: { value: Number(s.usd_ref || 0), currency: "USD", content_ids: [s.product], content_type: "product", order_id: s.id },
+        });
         const pr = await fetch("https://api.mercadopago.com/v1/payments", {
           method: "POST",
           headers: {
@@ -550,6 +680,16 @@ export default {
           const em = await sendAccessEmail(env, s);
           s.email_status = em.sent ? "sent:" + (em.id || "") : "failed:" + (em.reason || "");
           await writeSales(env, sales);
+          // CAPI: Purchase (pagamento aprovado) — event_id = order id p/ deduplicar com o browser
+          fbFire(env, ctx, request, {
+            event_name: "Purchase",
+            event_id: s.id,
+            fb: body.fb || {},
+            event_source_url: (body.fb && body.fb.event_source_url) || "",
+            email: s.email,
+            ...splitName(s.name),
+            custom_data: { value: Number(s.usd_ref || s.amount || 0), currency: "USD", content_ids: [s.product], content_type: "product", order_id: s.id },
+          });
           return json({ ok: true, status: "approved", order_id: s.id });
         }
         s.status = "mp:" + (status || "rejected");
@@ -590,6 +730,16 @@ export default {
           const em = await sendAccessEmail(env, s);
           s.email_status = em.sent ? "sent:" + (em.id || "") : "failed:" + (em.reason || "");
           await writeSales(env, sales);
+          // CAPI: Purchase via webhook (cobre Checkout Pro / redirect, sem browser)
+          fbFire(env, ctx, request, {
+            event_name: "Purchase",
+            event_id: s.id,
+            fb: {},
+            event_source_url: url.origin + "/acesso.html?order=" + encodeURIComponent(s.id),
+            email: s.email,
+            ...splitName(s.name),
+            custom_data: { value: Number(s.usd_ref || s.amount || 0), currency: "USD", content_ids: [s.product], content_type: "product", order_id: s.id },
+          });
         } else if (s.status !== "paid") {
           s.status = "mp:" + status;
           await writeSales(env, sales);
@@ -623,6 +773,16 @@ export default {
           const em = await sendAccessEmail(env, s);
           s.email_status = em.sent ? "sent:" + (em.id || "") : "failed:" + (em.reason || "");
           await writeSales(env, sales);
+          // CAPI: Purchase via NOWPayments IPN
+          fbFire(env, ctx, request, {
+            event_name: "Purchase",
+            event_id: s.id,
+            fb: {},
+            event_source_url: url.origin + "/acesso.html?order=" + encodeURIComponent(s.id),
+            email: s.email,
+            ...splitName(s.name),
+            custom_data: { value: Number(s.usd_ref || s.amount || 0), currency: "USD", content_ids: [s.product], content_type: "product", order_id: s.id },
+          });
         } else if (s.status !== "paid") {
           s.status = "ipn:" + status;
           await writeSales(env, sales);

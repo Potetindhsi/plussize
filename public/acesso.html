@@ -5,6 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Your Access</title>
 <meta name="robots" content="noindex">
+<!-- Meta Pixel Code -->
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '1387916253326765');
+fbq('track', 'PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=1387916253326765&ev=PageView&noscript=1"
+/></noscript>
+<!-- End Meta Pixel Code -->
 <style>
 body{font-family:Arial;background:#080d20;color:#e8ebff;display:flex;justify-content:center;padding:40px 16px;margin:0}
 .card{max-width:460px;width:100%;background:#101a3b;border:1px solid rgba(117,71,216,.6);border-radius:16px;padding:28px 24px;text-align:center}
@@ -26,6 +43,17 @@ function esc(t){ var d = document.createElement("div"); d.textContent = t; retur
 function render(j){
   var links = (j.links || []).map(function(u){ return "<a class='btn' href='" + u + "' target='_blank' rel='noopener'>\u25B6 Watch now</a>"; }).join("");
   show("<h2>✅ Payment confirmed, " + esc(j.name) + "!</h2><p>" + esc(j.productName || "") + "</p><div class='links'><p><b>Start watching:</b></p><p>" + links + "</p><p><small>A copy was also sent to your email.</small></p></div>");
+  // Purchase quando pagamento aprovado (página de acesso) — order = event_id p/ deduplicar com CAPI
+  try {
+    if (window.fbq && !window.__fb_purchase_fired) {
+      window.__fb_purchase_fired = true;
+      var isPremium = (j.access === "premium" || j.product === "premium");
+      var val = isPremium ? 10.00 : 5.00;
+      var cid = isPremium ? "premium" : "basic";
+      var eid = order || ("order-" + Date.now());
+      fbq("track", "Purchase", {value: val, currency: "USD", content_ids: [cid], content_type: "product"}, {eventID: eid});
+    }
+  } catch(e){}
 }
 var order = qs("order");
 var tries = 0;

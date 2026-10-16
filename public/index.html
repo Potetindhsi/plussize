@@ -5,6 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>The Bride They Should Have Never Underestimated — Watch Now</title>
 <meta name="description" content="Aurora Vitale was sold off to a ruthless mafia don. Big mistake. Watch the preview now.">
+<!-- Meta Pixel Code -->
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '1387916253326765');
+fbq('track', 'PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=1387916253326765&ev=PageView&noscript=1"
+/></noscript>
+<!-- End Meta Pixel Code -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:ital,wght@0,400;0,500;0,600;1,400&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
@@ -212,7 +229,13 @@ function render(combo, apiMode){
   sendTrack(combo, "view");
   ["pay-premium","pay-basic"].forEach(function(id){
     var a = document.getElementById(id);
-    if (a && !a.dataset.tracked) { a.dataset.tracked = "1"; a.addEventListener("click", function(){ sendTrack(combo, "click"); }); }
+    if (a && !a.dataset.tracked) { a.dataset.tracked = "1"; a.addEventListener("click", function(){
+      sendTrack(combo, "click");
+      try {
+        var val = (id === "pay-premium") ? 10.00 : 5.00;
+        if (window.fbq) fbq('track', 'InitiateCheckout', {value: val, currency: 'USD', content_ids: [id], content_type: 'product'});
+      } catch(e){}
+    }); }
   });
 }
 var forced = qs("ab");
@@ -232,7 +255,10 @@ var toast=document.getElementById('toast'),tn=document.getElementById('toast-nam
 function show(){tn.textContent=pick(NAMES);tt.textContent=' '+pick(TIMES);toast.classList.add('show');setTimeout(function(){toast.classList.remove('show')},4500)}
 setTimeout(show,3000);setInterval(show,9000);
 var modal=document.getElementById('modal');
-document.getElementById('btn-buy').addEventListener('click',function(){modal.classList.add('active')});
+document.getElementById('btn-buy').addEventListener('click',function(){
+  modal.classList.add('active');
+  try { if (window.fbq) fbq('track', 'InitiateCheckout', {value: 5.00, currency: 'USD', content_name: 'Sales page CTA'}); } catch(e){}
+});
 document.getElementById('modal-close').addEventListener('click',function(){modal.classList.remove('active')});
 modal.addEventListener('click',function(e){if(e.target===modal)modal.classList.remove('active')});
 })();

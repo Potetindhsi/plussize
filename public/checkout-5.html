@@ -10,6 +10,23 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://sdk.mercadopago.com/js/v2"></script>
+<!-- Meta Pixel Code -->
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '1387916253326765');
+fbq('track', 'PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=1387916253326765&ev=PageView&noscript=1"
+/></noscript>
+<!-- End Meta Pixel Code -->
 <style>
 :root{--primary:#dd3b32;--bg:#ffffff;--soft:#fff9f0;--card:#ffffff;--ink:#232838;--text:#3c4257;--mute:#6b7194;--line:#ecd9a8}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -98,6 +115,12 @@ var bumpOn=false, method="card";
 function qs(n){ try { return new URLSearchParams(location.search).get(n) || ""; } catch(e){ return ""; } }
 var UTMS={source:qs("utm_source"),medium:qs("utm_medium"),campaign:qs("utm_campaign"),term:qs("utm_term"),content:qs("utm_content")};
 var AB=qs("ab");
+// --- Meta Pixel + CAPI helpers ---
+function fbCookie(name){ try { var m=document.cookie.match(new RegExp("(^| )"+name+"=([^;]+)")); return m?decodeURIComponent(m[2]):""; } catch(e){ return ""; } }
+function fbEventId(){ try { return "evt-"+Date.now()+"-"+Math.random().toString(36).slice(2,10); } catch(e){ return "evt-"+Date.now(); } }
+function fbPayload(){ return {fbp:fbCookie("_fbp"), fbc:fbCookie("_fbc"), event_source_url:location.href}; }
+// InitiateCheckout ao abrir o checkout ($5)
+try { if (window.fbq) fbq("track", "InitiateCheckout", {value: 5.00, currency: "USD", content_ids: ["basic"], content_type: "product"}); } catch(e){}
 var digits=function(s){return (s||"").replace(/\D/g,"");};
 var LSKEY="checkout-5";
 try {
@@ -155,6 +178,8 @@ function go(btn){
   var c=validCustomer(btn); if(!c) return;
   var err=document.getElementById("err");
   var old=btn.textContent; btn.disabled=true; btn.textContent="Processing…";
+  // AddPaymentInfo quando tenta comprar
+  try { if (window.fbq) fbq("track", "AddPaymentInfo", {value: 5.00, currency: "USD", content_ids: ["basic"], content_type: "product"}); } catch(e){}
   var bumps=[];
   var num=digits(document.getElementById("c-num").value);
   var exp=document.getElementById("c-exp").value.split("/");
@@ -166,8 +191,9 @@ function go(btn){
   if(cvv.length<3){ fail("Check the CVV.",btn,old); return; }
   if(holder.length<2){ fail("Enter the name printed on card.",btn,old); return; }
   if(doc && doc.length!==11 && doc.length!==0){ fail("ID must have 11 digits (CPF) — or leave it empty.",btn,old); return; }
+  var fb=fbPayload();
   fetch("/api/checkout",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
-    product:"basic",provider:"mercadopago",deferred:true,name:c.name,email:c.email,bumps:bumps,utms:UTMS,ab:AB})})
+    product:"basic",provider:"mercadopago",deferred:true,name:c.name,email:c.email,bumps:bumps,utms:UTMS,ab:AB,fb:fb})})
     .then(function(r){return r.json();})
     .then(function(j){
       if(!j.order_id) throw 0;
@@ -178,16 +204,21 @@ function go(btn){
       return mp.getPaymentMethods({bin:num.slice(0,6)}).then(function(m){
         var pmId=(m&&m.results&&m.results[0]&&m.results[0].id)||"";
         return mp.createCardToken(cardData).then(function(tok){
+          var fb2=fbPayload();
           return fetch("/api/pay/card",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
-            order_id:j.order_id,card_token:tok.id,payment_method_id:pmId,installments:1,cpf:doc})});
+            order_id:j.order_id,card_token:tok.id,payment_method_id:pmId,installments:1,cpf:doc,fb:fb2})});
         });
       }).then(function(r){return r.json();})
       .then(function(p){
-        if(p.status==="approved"||p.status==="in_process"||p.status==="pending"){ clearPersist(); location.href="/acesso.html?order="+encodeURIComponent(j.order_id); return; }
+        if(p.status==="approved"||p.status==="in_process"||p.status==="pending"){
+          // Purchase quando pagamento aprovado (browser) — order_id = event_id p/ deduplicar com CAPI
+          try { if (window.fbq) fbq("track", "Purchase", {value: 5.00, currency: "USD", content_ids: ["basic"], content_type: "product"}, {eventID: j.order_id}); } catch(e){}
+          clearPersist(); location.href="/acesso.html?order="+encodeURIComponent(j.order_id); return; }
         failDecline(btn,old,function(){
           var cc=validCustomer(document.getElementById("pay")); if(!cc) return;
+          var fb3=fbPayload();
           fetch("/api/checkout",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
-            product:"basic",provider:"mercadopago",name:cc.name,email:cc.email,bumps:[],utms:UTMS,ab:AB})})
+            product:"basic",provider:"mercadopago",name:cc.name,email:cc.email,bumps:[],utms:UTMS,ab:AB,fb:fb3})})
             .then(function(r){return r.json();})
             .then(function(jj){ if(jj.init_point){ clearPersist(); location.href=jj.init_point; return; } fail("Payment unavailable right now.",btn,old); })
             .catch(function(){ fail("Connection error, try again.",btn,old); });
