@@ -99,11 +99,13 @@ const BUMPS = {
 };
 
 const accessOf = (sale) => sale.access || sale.product;
-// Configure your content links here (shown on /acesso.html after payment)
+// Configure your content links here (shown on /acesso.html + emailed after payment)
 const ACCESS_LINKS = {
-  basic: ["https://www.tiktok.com/@dramastop7"],
-  premium: ["https://www.tiktok.com/@dramastop7"],
+  basic: ["https://www.youtube.com/watch?v=TifeDy6MVbE"],
+  premium: ["https://www.youtube.com/watch?v=TifeDy6MVbE", "https://cplayapp.com/"],
 };
+// Button labels for the access email (index-matched to ACCESS_LINKS)
+const ACCESS_LABELS = ["\u25B6 Watch now", "\uD83D\uDCF1 Open the app"];
 
 const MAX_SALES = 5000;
 
@@ -159,11 +161,27 @@ async function verifyNowSig(body, sigHex, secret) {
   }
 }
 
+function accessButtonsHTML(lvl) {
+  const urls = ACCESS_LINKS[lvl] || [];
+  const btn =
+    "display:inline-block;padding:13px 26px;margin:5px 8px 5px 0;background:#dd3b32;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;font-family:Arial,sans-serif;font-size:15px";
+  return urls
+    .map((u, i) => `<a href="${u}" style="${btn}">${ACCESS_LABELS[i] || "Open"}</a>`)
+    .join("");
+}
+
 async function sendAccessEmail(env, sale) {
-  const linksFor = (p) => (ACCESS_LINKS[accessOf(sale)] || []).map((u) => `<li><a href="${u}">${u}</a></li>`).join("");
+  const lvl = accessOf(sale);
   const subj = "Your access is ready — " + sale.productName;
-  const html = `<p>Hi ${sale.name},</p><p>Payment confirmed (<b>${sale.id}</b>). Your access:</p><ul>${linksFor()}</ul>`;
-  // Option A2 (no domain, no phone): Mailjet single sender (free 200/day).
+  const html =
+    `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;color:#111418">` +
+    `<h2 style="color:#111418">Payment confirmed \u2705</h2>` +
+    `<p>Hi ${sale.name},</p>` +
+    `<p>Thanks for your order <b>${sale.id}</b>. Tap below to start watching:</p>` +
+    `<p>${accessButtonsHTML(lvl)}</p>` +
+    `<p style="color:#6B7280;font-size:12px">Need help? Just reply to this email.</p>` +
+    `</div>`;
+  // Option A (no domain, no phone): Mailjet single sender (free 200/day).
   // Mailjet > Account > Senders & Domains > add ONE email, confirm it,
   // then API Keys (public + private). Secrets: MJ_PUBLIC, MJ_PRIVATE, MJ_FROM.
   if (env.MJ_PUBLIC && env.MJ_PRIVATE && env.MJ_FROM) {
@@ -186,6 +204,7 @@ async function sendAccessEmail(env, sale) {
       if (r.ok) return { sent: true, id: "mailjet" };
     } catch (e) {}
   }
+  // Option B: SendGrid Single Sender (free 100/day).
   // SendGrid > Settings > Sender Authentication > Single Sender > verify 1 email,
   // then Settings > API Keys > create key. Secrets: SENDGRID_API_KEY + SENDGRID_FROM.
   if (env.SENDGRID_API_KEY && env.SENDGRID_FROM) {
@@ -203,26 +222,27 @@ async function sendAccessEmail(env, sale) {
       if (r.ok || r.status === 202) return { sent: true, id: "sendgrid" };
     } catch (e) {}
   }
+  // Option C: Brevo single sender (free 300/day).
+  // Secrets: BREVO_API_KEY + BREVO_FROM.
+  if (env.BREVO_API_KEY && env.BREVO_FROM) {
     try {
-      const links = (ACCESS_LINKS[accessOf(sale)] || []).map((u) => `<li><a href="${u}">${u}</a></li>`).join("");
       const r = await fetch("https://api.brevo.com/v3/smtp/email", {
         method: "POST",
         headers: { "api-key": env.BREVO_API_KEY, "content-type": "application/json" },
         body: JSON.stringify({
           sender: { email: env.BREVO_FROM, name: "Access" },
           to: [{ email: sale.email, name: sale.name }],
-          subject: "Your access is ready — " + sale.productName,
-          htmlContent: `<p>Hi ${sale.name},</p><p>Payment confirmed (<b>${sale.id}</b>). Your access:</p><ul>${links}</ul>`,
+          subject: subj,
+          htmlContent: html,
         }),
       });
       const j = await r.json().catch(() => ({}));
       if (r.ok) return { sent: true, id: j.messageId || "brevo" };
     } catch (e) {}
   }
-  // Option B: Resend (needs verified domain for non-owner recipients).
+  // Option D: Resend (needs verified domain for non-owner recipients).
   if (!env.RESEND_API_KEY) return { sent: false, reason: "no email provider key" };
   try {
-    const links = (ACCESS_LINKS[accessOf(sale)] || []).map((u) => `<li><a href="${u}">${u}</a></li>`).join("");
     const r = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -232,8 +252,8 @@ async function sendAccessEmail(env, sale) {
       body: JSON.stringify({
         from: env.RESEND_FROM || "Access <onboarding@resend.dev>",
         to: sale.email,
-        subject: "Your access is ready — " + sale.productName,
-        html: `<p>Hi ${sale.name},</p><p>Payment confirmed (<b>${sale.id}</b>). Your access:</p><ul>${links}</ul>`,
+        subject: subj,
+        html,
       }),
     });
     const j = await r.json().catch(() => ({}));
@@ -629,6 +649,26 @@ export default {
         let revenue = 0;
         for (const x of sales) if (x.status === "paid") revenue += Number(x.amount) || 0;
         return json({ sales, total: sales.length, paid: sales.filter((x) => x.status === "paid").length, revenue });
+      } catch (e) {
+        return json({ error: String((e && e.message) || e) }, 500);
+      }
+    }
+
+    // POST /api/resend?password=...&order=ORD-...  (manually re-send access email)
+    if (url.pathname === "/api/resend") {
+      if (url.searchParams.get("password") !== adminPw(env))
+        return json({ error: "wrong password" }, 401);
+      if (!env.AB_KV) return json({ error: "KV not bound (AB_KV)" }, 500);
+      try {
+        const order = url.searchParams.get("order") || "";
+        const all = await readSales(env);
+        const s = all.find((x) => x.id === order);
+        if (!s) return json({ error: "order not found" }, 404);
+        if (s.status !== "paid") return json({ error: "order is not paid yet" }, 400);
+        const em = await sendAccessEmail(env, s);
+        s.email_status = em.sent ? "sent:" + em.id : "failed:" + (em.reason || "?");
+        await writeSales(env, all);
+        return json({ ok: !!em.sent, result: s.email_status });
       } catch (e) {
         return json({ error: String((e && e.message) || e) }, 500);
       }

@@ -12,7 +12,8 @@ input{width:100%;padding:12px;border-radius:10px;border:1px solid #444;backgroun
 button{padding:12px 22px;border-radius:10px;border:0;background:#7547d8;color:#fff;font-weight:700;cursor:pointer}
 a{color:#f2cf78}
 .err{color:#ff7b7b}
-.links{text-align:left;margin-top:14px}
+a.btn{display:inline-block;margin:6px 4px 0;padding:13px 24px;background:#dd3b32;color:#fff;text-decoration:none;border-radius:8px;font-weight:700}
+.links{text-align:center;margin-top:14px}
 </style>
 </head>
 <body>
@@ -23,8 +24,8 @@ function qs(n){ try { return new URLSearchParams(location.search).get(n) || ""; 
 function show(html){ document.getElementById("box").innerHTML = html; }
 function esc(t){ var d = document.createElement("div"); d.textContent = t; return d.innerHTML; }
 function render(j){
-  var links = (j.links || []).map(function(u){ return "<li><a href='" + u + "'>" + esc(u) + "</a></li>"; }).join("");
-  show("<h2>✅ Payment confirmed, " + esc(j.name) + "!</h2><p>" + esc(j.productName || "") + "</p><div class='links'><p><b>Your links:</b></p><ul>" + links + "</ul><p><small>A copy was also sent to your email.</small></p></div>");
+  var links = (j.links || []).map(function(u){ return "<a class='btn' href='" + u + "' target='_blank' rel='noopener'>\u25B6 Watch now</a>"; }).join("");
+  show("<h2>✅ Payment confirmed, " + esc(j.name) + "!</h2><p>" + esc(j.productName || "") + "</p><div class='links'><p><b>Start watching:</b></p><p>" + links + "</p><p><small>A copy was also sent to your email.</small></p></div>");
 }
 var order = qs("order");
 var tries = 0;

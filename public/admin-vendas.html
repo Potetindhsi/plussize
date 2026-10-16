@@ -116,7 +116,7 @@ function load(){
       CACHE.forEach(function(x){
         var u = x.utms || {};
         var utm = [u.source && ("src:" + u.source), u.medium && ("med:" + u.medium), u.campaign && ("cmp:" + u.campaign), u.ab && ("ab:" + u.ab)].filter(Boolean).join(" ");
-        html += "<tr class='" + (x.status === "paid" ? "paid" : "pending") + "'><td><small>" + esc(new Date(x.ts).toLocaleString()) + "<br>" + esc(x.id) + "</small></td><td>" + esc(x.name) + "<br><small>" + esc(x.email) + (x.phone ? "<br>" + esc(x.phone) : "") + "</small></td><td>" + esc(x.product) + ((x.bumps && x.bumps.length) ? "<br><small>+" + esc(x.bumps.join(",")) + "</small>" : "") + "</td><td>" + esc(x.currency) + " " + esc(x.amount) + "</td><td><small>" + esc(x.provider === "mercadopago" ? "MP" : "crypto") + "</small></td><td><b>" + esc(x.status) + "</b>" + (x.mp_detail ? "<br><small>" + esc(x.mp_detail) + "</small>" : "") + "</td><td><small>" + esc(utm || "—") + "</small></td><td><small>" + esc(x.email_status || "—") + "</small></td></tr>";
+        html += "<tr class='" + (x.status === "paid" ? "paid" : "pending") + "'><td><small>" + esc(new Date(x.ts).toLocaleString()) + "<br>" + esc(x.id) + "</small></td><td>" + esc(x.name) + "<br><small>" + esc(x.email) + (x.phone ? "<br>" + esc(x.phone) : "") + "</small></td><td>" + esc(x.product) + ((x.bumps && x.bumps.length) ? "<br><small>+" + esc(x.bumps.join(",")) + "</small>" : "") + "</td><td>" + esc(x.currency) + " " + esc(x.amount) + "</td><td><small>" + esc(x.provider === "mercadopago" ? "MP" : "crypto") + "</small></td><td><b>" + esc(x.status) + "</b>" + (x.mp_detail ? "<br><small>" + esc(x.mp_detail) + "</small>" : "") + "</td><td><small>" + esc(utm || "—") + "</small></td><td><small>" + esc(x.email_status || "—") + "</small>" + (x.status === "paid" ? " <button class='btn resend' data-order=\"" + esc(x.id) + "\" style='padding:4px 8px;font-size:11px;margin-top:4px'>\u2709 Resend</button>" : "") + "</td></tr>";
       });
       document.getElementById("t").innerHTML = "<tr><th>Date</th><th>Customer</th><th>Product</th><th>$</th><th>Via</th><th>Status</th><th>UTMs / AB</th><th>Email delivery</th></tr>" + (html || "<tr><td colspan='8'>No sales yet.</td></tr>");
     })
@@ -125,6 +125,19 @@ function load(){
 document.getElementById("login-btn").addEventListener("click", function(){ pw = document.getElementById("pw").value; load(); });
 document.getElementById("pw").addEventListener("keydown", function(e){ if (e.key === "Enter") { pw = e.target.value; load(); } });
 document.getElementById("refresh").addEventListener("click", load);
+document.getElementById("t").addEventListener("click", function(e){
+  var b = e.target;
+  if (!b || (" " + b.className + " ").indexOf(" resend ") === -1) return;
+  var order = b.getAttribute("data-order");
+  b.disabled = true; b.textContent = "…";
+  fetch("/api/resend?password=" + encodeURIComponent(pw) + "&order=" + encodeURIComponent(order), {method: "POST", cache: "no-store"})
+    .then(function(r){ return r.json().then(function(j){ return {s: r.status, j: j}; }); })
+    .then(function(res){
+      if (res.s === 200 && res.j.ok) { b.textContent = "\u2713 Sent"; setTimeout(load, 900); }
+      else { b.textContent = "\u2717 " + ((res.j && (res.j.error || res.j.result)) || res.s); b.disabled = false; }
+    })
+    .catch(function(){ b.textContent = "\u2717 error"; b.disabled = false; });
+});
 document.getElementById("f-apply").addEventListener("click", load);
 document.getElementById("f-today").addEventListener("click", function(){
   var d = new Date();
