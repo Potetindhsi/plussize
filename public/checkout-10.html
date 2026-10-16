@@ -115,9 +115,12 @@ var UTMS={source:qs("utm_source"),medium:qs("utm_medium"),campaign:qs("utm_campa
 var AB=qs("ab");
 // --- Meta Pixel + CAPI helpers ---
 function fbCookie(name){ try { var m=document.cookie.match(new RegExp("(^| )"+name+"=([^;]+)")); return m?decodeURIComponent(m[2]):""; } catch(e){ return ""; } }
-function fbPayload(){ return {fbp:fbCookie("_fbp"), fbc:fbCookie("_fbc"), event_source_url:location.href}; }
-// InitiateCheckout ao abrir o checkout ($10)
-try { if (window.fbq) fbq("track", "InitiateCheckout", {value: 10.00, currency: "USD", content_ids: ["premium"], content_type: "product"}); } catch(e){}
+function fbEventId(){ try { return "evt-"+Date.now()+"-"+Math.random().toString(36).slice(2,10); } catch(e){ return "evt-"+Date.now(); } }
+var FB_INIT_ID=fbEventId();
+var FB_ADDPAY_ID=null;
+function fbPayload(){ var p={fbp:fbCookie("_fbp"), fbc:fbCookie("_fbc"), event_source_url:location.href, initiate_event_id:FB_INIT_ID}; if(FB_ADDPAY_ID) p.addpay_event_id=FB_ADDPAY_ID; return p; }
+// InitiateCheckout ao abrir o checkout ($10) — mesmo eventID vai na CAPI p/ deduplicar
+try { if (window.fbq) fbq("track", "InitiateCheckout", {value: 10.00, currency: "USD", content_ids: ["premium"], content_type: "product"}, {eventID: FB_INIT_ID}); } catch(e){}
 var digits=function(s){return (s||"").replace(/\D/g,"");};
 var LSKEY="checkout-10";
 try {
@@ -170,8 +173,9 @@ function go(btn){
   var c=validCustomer(btn); if(!c) return;
   var err=document.getElementById("err");
   var old=btn.textContent; btn.disabled=true; btn.textContent="Processing…";
-  // AddPaymentInfo quando tenta comprar
-  try { if (window.fbq) fbq("track", "AddPaymentInfo", {value: 10.00, currency: "USD", content_ids: ["premium"], content_type: "product"}); } catch(e){}
+  // AddPaymentInfo quando tenta comprar — mesmo eventID vai na CAPI p/ deduplicar
+  FB_ADDPAY_ID=fbEventId();
+  try { if (window.fbq) fbq("track", "AddPaymentInfo", {value: 10.00, currency: "USD", content_ids: ["premium"], content_type: "product"}, {eventID: FB_ADDPAY_ID}); } catch(e){}
   var num=digits(document.getElementById("c-num").value);
   var exp=document.getElementById("c-exp").value.split("/");
   var cvv=digits(document.getElementById("c-cvv").value);

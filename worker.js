@@ -497,7 +497,7 @@ export default {
           await writeSales(env, all);
           fbFire(env, ctx, request, {
             event_name: "InitiateCheckout",
-            event_id: sale.id + ":initiate",
+            event_id: (body.fb && body.fb.initiate_event_id) || (sale.id + ":initiate"),
             fb: body.fb || {},
             event_source_url: (body.fb && body.fb.event_source_url) || url.origin + (product === "premium" ? "/checkout-10.html" : "/checkout-5.html"),
             email: sale.email,
@@ -566,7 +566,7 @@ export default {
           await writeSales(env, allMp);
           fbFire(env, ctx, request, {
             event_name: "InitiateCheckout",
-            event_id: sale.id + ":initiate",
+            event_id: (body.fb && body.fb.initiate_event_id) || (sale.id + ":initiate"),
             fb: body.fb || {},
             event_source_url: (body.fb && body.fb.event_source_url) || origin + (product === "premium" ? "/checkout-10.html" : "/checkout-5.html"),
             email: sale.email,
@@ -606,7 +606,7 @@ export default {
         await writeSales(env, all);
         fbFire(env, ctx, request, {
           event_name: "InitiateCheckout",
-          event_id: sale.id + ":initiate",
+          event_id: (body.fb && body.fb.initiate_event_id) || (sale.id + ":initiate"),
           fb: body.fb || {},
           event_source_url: (body.fb && body.fb.event_source_url) || origin + (product === "premium" ? "/checkout-10.html" : "/checkout-5.html"),
           email: sale.email,
@@ -643,7 +643,7 @@ export default {
         // CAPI: AddPaymentInfo (tentou pagar)
         fbFire(env, ctx, request, {
           event_name: "AddPaymentInfo",
-          event_id: s.id + ":addpay",
+          event_id: (body.fb && body.fb.addpay_event_id) || (s.id + ":addpay"),
           fb: body.fb || {},
           event_source_url: (body.fb && body.fb.event_source_url) || "",
           email: s.email,

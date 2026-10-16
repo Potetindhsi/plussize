@@ -231,10 +231,6 @@ function render(combo, apiMode){
     var a = document.getElementById(id);
     if (a && !a.dataset.tracked) { a.dataset.tracked = "1"; a.addEventListener("click", function(){
       sendTrack(combo, "click");
-      try {
-        var val = (id === "pay-premium") ? 10.00 : 5.00;
-        if (window.fbq) fbq('track', 'InitiateCheckout', {value: val, currency: 'USD', content_ids: [id], content_type: 'product'});
-      } catch(e){}
     }); }
   });
 }
@@ -257,7 +253,6 @@ setTimeout(show,3000);setInterval(show,9000);
 var modal=document.getElementById('modal');
 document.getElementById('btn-buy').addEventListener('click',function(){
   modal.classList.add('active');
-  try { if (window.fbq) fbq('track', 'InitiateCheckout', {value: 5.00, currency: 'USD', content_name: 'Sales page CTA'}); } catch(e){}
 });
 document.getElementById('modal-close').addEventListener('click',function(){modal.classList.remove('active')});
 modal.addEventListener('click',function(e){if(e.target===modal)modal.classList.remove('active')});
